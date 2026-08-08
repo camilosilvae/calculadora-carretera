@@ -16,60 +16,25 @@ Aplicación web estática para planificar recorridos multiparada, estimar costos
 
 ## Publicación
 
-El repositorio está preparado para publicarse con **GitHub Pages** desde la rama `main` y la carpeta `/ (root)`.
+La aplicación debe quedar publicada como un `index.html` directo. El repositorio incluye el flujo manual **Reconstruir aplicación**, que recompone el HTML original a partir del respaldo en `payload/` y lo confirma en la rama `main`.
 
-`index.html` funciona como un cargador ligero. Descarga los bloques de `payload/`, reconstruye la versión completa de la aplicación en el navegador y la ejecuta sin servidor ni backend propio.
+Para reconstruirlo desde GitHub:
 
-## Estructura técnica
+1. Abre la pestaña **Actions**.
+2. Selecciona **Reconstruir aplicación**.
+3. Pulsa **Run workflow** y vuelve a pulsar **Run workflow** para confirmar.
+4. Espera a que el flujo termine con marca verde.
 
-```text
-.
-├── index.html
-├── payload/
-│   ├── part01.txt
-│   ├── ...
-│   └── part18.txt
-├── README.md
-└── .nojekyll
-```
-
-La división en bloques conserva íntegro el HTML original, incluido el catálogo geográfico y las tarifas incorporadas, evitando modificar la lógica de la aplicación.
+GitHub Pages debe estar configurado con **Deploy from a branch → main → /(root)**.
 
 ## Servicios externos utilizados
 
-La aplicación utiliza servicios públicos externos desde el navegador, entre ellos:
-
-- OpenStreetMap / Leaflet para visualización cartográfica.
-- Nominatim para búsqueda y geocodificación.
-- OSRM para cálculo y optimización de rutas.
-- Google Maps para abrir el recorrido generado.
-- CDN públicos para Leaflet, JSZip, tipografías y Pako.
-
-Estos servicios pueden aplicar límites de uso, políticas de disponibilidad o cambios propios. Para un uso público de alto tráfico conviene revisar sus condiciones y, si es necesario, reemplazar los endpoints públicos por servicios con capacidad adecuada.
+La aplicación utiliza servicios públicos externos desde el navegador, entre ellos OpenStreetMap/Leaflet, Nominatim, OSRM, Google Maps y CDN públicos para librerías y tipografías.
 
 ## Datos tarifarios
 
-La versión publicada contiene un catálogo geográfico y un paquete tarifario 2026 incorporados. Las tarifas y reglas deben revisarse cuando cambie el año o cuando el MOP o una concesionaria publique modificaciones.
-
-Los registros sin una vinculación suficientemente segura se tratan de forma conservadora y no deben asumirse automáticamente como cobros confirmados.
+El HTML original contiene el catálogo geográfico y el paquete tarifario 2026 incorporados. Las tarifas y reglas deben revisarse cuando cambie el año o cuando MOP/concesionarias publiquen modificaciones.
 
 ## Privacidad
 
-La base y los destinos introducidos por cada usuario se guardan localmente en su navegador. El repositorio no contiene una dirección de base personal preconfigurada, contraseñas ni claves API privadas.
-
-## GitHub Pages
-
-Para activar la web:
-
-1. Abre **Settings → Pages** en este repositorio.
-2. En **Build and deployment**, elige **Deploy from a branch**.
-3. Selecciona `main` y `/ (root)`.
-4. Pulsa **Save**.
-
-La dirección esperada será:
-
-`https://camilosilvae.github.io/calculadora-carretera/`
-
-## Licencia
-
-Este repositorio no incluye una licencia de código abierto por defecto. Si deseas permitir reutilización, modificación o distribución por terceros, añade explícitamente la licencia que prefieras.
+La base y destinos introducidos por el usuario se guardan localmente en el navegador mediante `localStorage`. El repositorio no incluye una dirección de base personal preconfigurada ni claves privadas.
