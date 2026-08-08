@@ -1,0 +1,55 @@
+name: Reconstruir aplicación
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "payload/**"
+      - ".github/workflows/rebuild-index.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Reconstruir index.html original
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, gzip, hashlib
+
+          parts = sorted(Path('payload').glob('part*.txt'))
+          if len(parts) != 18:
+              raise SystemExit(f'Se esperaban 18 bloques y se encontraron {len(parts)}')
+
+          encoded = ''.join(p.read_text(encoding='utf-8').strip() for p in parts)
+          compressed = base64.b64decode(encoded, validate=True)
+          html = gzip.decompress(compressed)
+
+          if b'Arma la salida' not in html:
+              raise SystemExit('La comprobación de integridad del HTML falló')
+
+          Path('index.html').write_bytes(html)
+          print('index.html reconstruido:', len(html), 'bytes')
+          print('SHA256:', hashlib.sha256(html).hexdigest())
+          PY
+
+      - name: Publicar HTML directo en main
+        shell: bash
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "index.html ya está actualizado"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Publicar aplicación como HTML directo"
+          git push
