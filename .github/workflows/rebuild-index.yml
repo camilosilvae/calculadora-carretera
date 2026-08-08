@@ -22,26 +22,51 @@ jobs:
           count=$(find payload -maxdepth 1 -type f -name 'part*.txt' | wc -l | tr -d ' ')
           echo "Bloques encontrados: $count"
           test "$count" = "18"
-          wc -c payload/part*.txt
 
       - name: Reconstruir index.html original
         shell: bash
         run: |
           set -euo pipefail
-          cat payload/part*.txt \
-            | tr -d '\r\n\t ' \
-            | base64 --decode \
-            | gzip -dc \
-            > index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, gzip, hashlib
 
-          bytes=$(wc -c < index.html | tr -d ' ')
-          echo "index.html reconstruido: $bytes bytes"
-          sha256sum index.html
+          parts = sorted(Path('payload').glob('part*.txt'))
+          if len(parts) != 18:
+              raise SystemExit(f'Se esperaban 18 bloques y se encontraron {len(parts)}')
 
-          test "$bytes" = "1158506"
-          grep -q "Arma la salida" index.html
-          grep -qi "<!doctype html>" index.html
-          echo "Comprobación de integridad: OK"
+          compressed_parts = []
+          for p in parts:
+              text = ''.join(p.read_text(encoding='utf-8').split())
+              try:
+                  decoded = base64.b64decode(text, validate=True)
+              except Exception as exc:
+                  raise SystemExit(f'{p.name}: Base64 inválido: {exc}')
+              print(f'{p.name}: {len(text)} caracteres Base64 -> {len(decoded)} bytes')
+              compressed_parts.append(decoded)
+
+          compressed = b''.join(compressed_parts)
+          print('GZIP reconstruido:', len(compressed), 'bytes')
+          if compressed[:2] != b'\x1f\x8b':
+              raise SystemExit('La cabecera GZIP reconstruida no es válida')
+
+          try:
+              html = gzip.decompress(compressed)
+          except Exception as exc:
+              raise SystemExit(f'No se pudo descomprimir GZIP: {exc}')
+
+          expected_size = 1158506
+          if len(html) != expected_size:
+              raise SystemExit(f'Tamaño inesperado: {len(html)} bytes; esperado {expected_size}')
+          if b'Arma la salida' not in html:
+              raise SystemExit('No se encontró la marca de integridad "Arma la salida"')
+          if b'<!DOCTYPE html>' not in html and b'<!doctype html>' not in html:
+              raise SystemExit('El resultado no parece un documento HTML')
+
+          Path('index.html').write_bytes(html)
+          print('index.html reconstruido:', len(html), 'bytes')
+          print('SHA256:', hashlib.sha256(html).hexdigest())
+          PY
 
       - name: Publicar HTML directo en main
         shell: bash
