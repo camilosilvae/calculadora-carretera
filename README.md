@@ -14,67 +14,62 @@ Aplicación web estática para planificar recorridos multiparada, estimar costos
 - Permite abrir el recorrido resultante en Google Maps.
 - Guarda configuración y datos de uso localmente en el navegador mediante `localStorage`.
 
-## Abrir la aplicación
+## Publicación
 
-La aplicación principal está en [`index.html`](./index.html). No requiere instalación ni servidor propio para su lógica principal.
+El repositorio está preparado para publicarse con **GitHub Pages** desde la rama `main` y la carpeta `/ (root)`.
 
-Para probarla localmente, puedes abrir `index.html` directamente en un navegador moderno. Si el navegador restringe alguna petición de red desde archivos locales, sirve la carpeta con un servidor HTTP local, por ejemplo:
+`index.html` funciona como un cargador ligero. Descarga los bloques de `payload/`, reconstruye la versión completa de la aplicación en el navegador y la ejecuta sin servidor ni backend propio.
 
-```bash
-python3 -m http.server 8000
+## Estructura técnica
+
+```text
+.
+├── index.html
+├── payload/
+│   ├── part01.txt
+│   ├── ...
+│   └── part18.txt
+├── README.md
+└── .nojekyll
 ```
 
-Luego abre `http://localhost:8000`.
-
-## Publicar con GitHub Pages
-
-1. Crea un repositorio nuevo en GitHub.
-2. Sube el contenido de esta carpeta a la rama `main`.
-3. En el repositorio, abre **Settings → Pages**.
-4. En **Build and deployment**, selecciona **Deploy from a branch**.
-5. Selecciona la rama `main` y la carpeta `/ (root)`.
-6. Guarda los cambios.
-
-GitHub Pages publicará automáticamente `index.html` como página principal.
-
-## Herramienta de mantenimiento
-
-En [`tools/actualizador_mop_v9_tarifas.html`](./tools/actualizador_mop_v9_tarifas.html) se incluye el actualizador MOP/GPS/tarifas v9. Es una herramienta separada de la calculadora principal y no es necesaria para que `index.html` funcione.
+La división en bloques conserva íntegro el HTML original, incluido el catálogo geográfico y las tarifas incorporadas, evitando modificar la lógica de la aplicación.
 
 ## Servicios externos utilizados
 
 La aplicación utiliza servicios públicos externos desde el navegador, entre ellos:
 
 - OpenStreetMap / Leaflet para visualización cartográfica.
-- Nominatim para búsqueda/geocodificación.
+- Nominatim para búsqueda y geocodificación.
 - OSRM para cálculo y optimización de rutas.
 - Google Maps para abrir el recorrido generado.
-- CDN públicos para Leaflet, JSZip y tipografías.
+- CDN públicos para Leaflet, JSZip, tipografías y Pako.
 
-Estos servicios pueden aplicar límites de uso, políticas de disponibilidad o cambios propios. Para uso público de alto tráfico conviene reemplazar los endpoints de demostración/públicos por servicios con capacidad y condiciones adecuadas.
+Estos servicios pueden aplicar límites de uso, políticas de disponibilidad o cambios propios. Para un uso público de alto tráfico conviene revisar sus condiciones y, si es necesario, reemplazar los endpoints públicos por servicios con capacidad adecuada.
 
 ## Datos tarifarios
 
-El archivo principal contiene un catálogo geográfico y un paquete tarifario 2026 incorporados. Las tarifas y reglas pueden quedar desactualizadas al cambiar el año o cuando una concesionaria/MOP publique modificaciones.
+La versión publicada contiene un catálogo geográfico y un paquete tarifario 2026 incorporados. Las tarifas y reglas deben revisarse cuando cambie el año o cuando el MOP o una concesionaria publique modificaciones.
 
-Los registros sin vinculación suficientemente segura se tratan de forma conservadora y no deben asumirse automáticamente como cobros confirmados.
+Los registros sin una vinculación suficientemente segura se tratan de forma conservadora y no deben asumirse automáticamente como cobros confirmados.
 
 ## Privacidad
 
-La base y los destinos introducidos por el usuario se guardan en el almacenamiento local del navegador. Este repositorio no incluye una dirección de base personal preconfigurada ni claves privadas.
+La base y los destinos introducidos por cada usuario se guardan localmente en su navegador. El repositorio no contiene una dirección de base personal preconfigurada, contraseñas ni claves API privadas.
 
-## Estructura
+## GitHub Pages
 
-```text
-.
-├── index.html
-├── tools/
-│   └── actualizador_mop_v9_tarifas.html
-├── README.md
-├── .gitignore
-└── .nojekyll
-```
+Para activar la web:
+
+1. Abre **Settings → Pages** en este repositorio.
+2. En **Build and deployment**, elige **Deploy from a branch**.
+3. Selecciona `main` y `/ (root)`.
+4. Pulsa **Save**.
+
+La dirección esperada será:
+
+`https://camilosilvae.github.io/calculadora-carretera/`
 
 ## Licencia
 
-Este repositorio no incluye una licencia de código abierto por defecto. Si deseas permitir reutilización, modificación o distribución por terceros, añade explícitamente la licencia que prefieras antes de publicarlo.
+Este repositorio no incluye una licencia de código abierto por defecto. Si deseas permitir reutilización, modificación o distribución por terceros, añade explícitamente la licencia que prefieras.
