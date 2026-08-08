@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Calculadora de recorridos y peajes</title>
+<style>
+body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;background:#eae7e1;color:#141311;display:grid;min-height:100vh;place-items:center}
+main{max-width:520px;padding:32px;text-align:center}
+h1{font-size:28px;margin:0 0 10px}
+p{line-height:1.5}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+</head>
+<body>
+<main><h1>Cargando aplicación…</h1><p>Preparando la calculadora de recorridos y peajes.</p></main>
+<script>
+(async()=>{
+  try{
+    const files=Array.from({length:18},(_,i)=>`payload/part${String(i+1).padStart(2,"0")}.txt`);
+    const parts=await Promise.all(files.map(async f=>{
+      const r=await fetch(f,{cache:"force-cache"});
+      if(!r.ok) throw new Error(`${f}: ${r.status}`);
+      return (await r.text()).trim();
+    }));
+    const bin=atob(parts.join(""));
+    const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+    const html=pako.ungzip(bytes,{to:"string"});
+    document.open();
+    document.write(html);
+    document.close();
+  }catch(err){
+    document.body.innerHTML=`<main><h1>No se pudo cargar la aplicación</h1><p>${String(err.message||err)}</p></main>`;
+  }
+})();
+</script>
+</body>
+</html>
