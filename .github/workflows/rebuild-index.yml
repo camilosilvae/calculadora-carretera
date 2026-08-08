@@ -1,13 +1,6 @@
 name: Reconstruir aplicación
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "payload/**"
-      - ".github/workflows/rebuild-index.yml"
-  issues:
-    types: [opened]
   workflow_dispatch:
 
 permissions:
@@ -15,7 +8,6 @@ permissions:
 
 jobs:
   rebuild:
-    if: github.event_name != 'issues' || github.event.issue.title == 'rebuild-index'
     runs-on: ubuntu-latest
     steps:
       - name: Descargar repositorio
