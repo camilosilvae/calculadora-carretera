@@ -6,7 +6,7 @@
 <title>Calculadora de recorridos y peajes</title>
 <style>
 body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;background:#eae7e1;color:#141311;display:grid;min-height:100vh;place-items:center}
-main{max-width:560px;padding:32px;text-align:center}
+main{max-width:600px;padding:32px;text-align:center}
 h1{font-size:28px;margin:0 0 10px}
 p{line-height:1.5;margin:8px 0}.detalle{font-size:13px;color:#666;word-break:break-word}
 </style>
@@ -17,17 +17,37 @@ p{line-height:1.5;margin:8px 0}.detalle{font-size:13px;color:#666;word-break:bre
 (async()=>{
   const detalle=document.getElementById("detalle");
   try{
-    const version="20260807-2";
-    const files=Array.from({length:18},(_,i)=>`payload/part${String(i+1).padStart(2,"0")}.txt`);
+    const version="20260807-3";
+    const names=Array.from({length:18},(_,i)=>`part${String(i+1).padStart(2,"0")}.txt`);
     const chunks=[];
     let total=0;
 
-    for(let i=0;i<files.length;i++){
-      detalle.textContent=`Cargando datos ${i+1} de ${files.length}…`;
-      const r=await fetch(`${files[i]}?v=${version}`,{cache:"no-store"});
-      if(!r.ok) throw new Error(`${files[i]}: HTTP ${r.status}`);
-      const b64=(await r.text()).replace(/\s+/g,"");
-      const bin=atob(b64);
+    async function descargarBloque(name,index){
+      const fuentes=[
+        `payload/${name}?v=${version}`,
+        `https://raw.githubusercontent.com/camilosilvae/calculadora-carretera/main/payload/${name}?v=${version}`
+      ];
+      let ultimoError=null;
+      for(const url of fuentes){
+        try{
+          detalle.textContent=`Cargando datos ${index+1} de ${names.length}…`;
+          const r=await fetch(url,{cache:"no-store",mode:"cors"});
+          if(!r.ok) throw new Error(`HTTP ${r.status}`);
+          const txt=(await r.text()).replace(/\s+/g,"");
+          if(!txt) throw new Error("archivo vacío");
+          return txt;
+        }catch(err){
+          ultimoError=err;
+          console.warn("No se pudo cargar",url,err);
+        }
+      }
+      throw new Error(`${name}: no se pudo descargar desde GitHub Pages ni desde GitHub (${ultimoError?.message||ultimoError})`);
+    }
+
+    for(let i=0;i<names.length;i++){
+      const b64=await descargarBloque(names[i],i);
+      let bin;
+      try{bin=atob(b64);}catch(e){throw new Error(`${names[i]}: contenido Base64 inválido`);}
       const bytes=new Uint8Array(bin.length);
       for(let j=0;j<bin.length;j++) bytes[j]=bin.charCodeAt(j);
       chunks.push(bytes);
@@ -41,7 +61,6 @@ p{line-height:1.5;margin:8px 0}.detalle{font-size:13px;color:#666;word-break:bre
     if(gzip[0]!==0x1f || gzip[1]!==0x8b){
       throw new Error("El paquete descargado no tiene una cabecera GZIP válida.");
     }
-
     if(typeof DecompressionStream!=="function"){
       throw new Error("Este navegador no admite la descompresión necesaria. Actualiza Chrome, Safari, Edge o Firefox.");
     }
@@ -61,7 +80,7 @@ p{line-height:1.5;margin:8px 0}.detalle{font-size:13px;color:#666;word-break:bre
     document.write(html);
     document.close();
   }catch(err){
-    document.body.innerHTML=`<main><h1>No se pudo cargar la aplicación</h1><p>${String(err.message||err)}</p><p class="detalle">Recarga la página con Ctrl+Shift+R (Windows) o Cmd+Shift+R (Mac). Si persiste, avísame con una captura.</p></main>`;
+    document.body.innerHTML=`<main><h1>No se pudo cargar la aplicación</h1><p>${String(err.message||err)}</p><p class="detalle">Prueba una recarga completa con Cmd+Shift+R. Si persiste, envíame esta pantalla.</p></main>`;
     console.error(err);
   }
 })();
