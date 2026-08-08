@@ -15,32 +15,38 @@ jobs:
         with:
           ref: main
 
+      - name: Verificar bloques
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=$(find payload -maxdepth 1 -type f -name 'part*.txt' | wc -l | tr -d ' ')
+          echo "Bloques encontrados: $count"
+          test "$count" = "18"
+          wc -c payload/part*.txt
+
       - name: Reconstruir index.html original
         shell: bash
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import base64, gzip, hashlib
+          set -euo pipefail
+          cat payload/part*.txt \
+            | tr -d '\r\n\t ' \
+            | base64 --decode \
+            | gzip -dc \
+            > index.html
 
-          parts = sorted(Path('payload').glob('part*.txt'))
-          if len(parts) != 18:
-              raise SystemExit(f'Se esperaban 18 bloques y se encontraron {len(parts)}')
+          bytes=$(wc -c < index.html | tr -d ' ')
+          echo "index.html reconstruido: $bytes bytes"
+          sha256sum index.html
 
-          encoded = ''.join(p.read_text(encoding='utf-8').strip() for p in parts)
-          compressed = base64.b64decode(encoded, validate=True)
-          html = gzip.decompress(compressed)
-
-          if b'Arma la salida' not in html:
-              raise SystemExit('La comprobación de integridad del HTML falló')
-
-          Path('index.html').write_bytes(html)
-          print('index.html reconstruido:', len(html), 'bytes')
-          print('SHA256:', hashlib.sha256(html).hexdigest())
-          PY
+          test "$bytes" = "1158506"
+          grep -q "Arma la salida" index.html
+          grep -qi "<!doctype html>" index.html
+          echo "Comprobación de integridad: OK"
 
       - name: Publicar HTML directo en main
         shell: bash
         run: |
+          set -euo pipefail
           if git diff --quiet -- index.html; then
             echo "index.html ya está actualizado"
             exit 0
