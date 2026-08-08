@@ -15,13 +15,38 @@ jobs:
         with:
           ref: main
 
-      - name: Verificar bloques
+      - name: Reparar bloques dañados
         shell: bash
         run: |
           set -euo pipefail
-          count=$(find payload -maxdepth 1 -type f -name 'part*.txt' | wc -l | tr -d ' ')
-          echo "Bloques encontrados: $count"
-          test "$count" = "18"
+          cat repair/part09_1.txt repair/part09_2.txt repair/part09_3.txt > payload/part09.txt
+          cat repair/part12_1.txt repair/part12_2.txt repair/part12_3.txt > payload/part12.txt
+          test "$(wc -c < payload/part09.txt | tr -d ' ')" = "7500"
+          test "$(wc -c < payload/part12.txt | tr -d ' ')" = "7500"
+
+      - name: Verificar integridad de bloques
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object payload/part01.txt)" = "05bafb786d69d05fb20e2e7cf17d14470ca74f66" || { echo "ERROR: part01.txt no coincide"; exit 1; }
+          test "$(git hash-object payload/part02.txt)" = "2daf05ef1fa30c9097399ea3b9cf2f66d4c98e92" || { echo "ERROR: part02.txt no coincide"; exit 1; }
+          test "$(git hash-object payload/part03.txt)" = "7277cc6c52167657893edab99e7be9909ef78afe" || { echo "ERROR: part03.txt no coincide"; exit 1; }
+          test "$(git hash-object payload/part04.txt)" = "c74220039cb03b46dcc3364db43b1104fe4ca354" || { echo "ERROR: part04.txt no coincide"; exit 1; }
+          test "$(git hash-object payload/part05.txt)" = "aeed73fa4a8a2b3c3301ff0d35de295f821b0d58" || { echo "ERROR: part05.txt no coincide"; exit 1; }
+          test "$(git hash-object payload/part06.txt)" = "4b98bb47ef8e984d1972d1392891de3c680efac9" || { echo "ERROR: part06.txt no coincide"; exit 1; }
+          test "$(git hash-object payload/part07.txt)" = "411d861bceb51618a8bba0cb2f2c8900cc495fcd" || { echo "ERROR: part07.txt no coincide"; exit 1; }
+          test "$(git hash-object payload/part08.txt)" = "48820f837c5fe39e0037b68b7144b0a897d035ab" || { echo "ERROR: part08.txt no coincide"; exit 1; }
+          test "$(git hash-object payload/part09.txt)" = "c8e101006895555a0f239b832b8b131e3300d977" || { echo "ERROR: part09.txt no coincide"; exit 1; }
+          test "$(git hash-object payload/part10.txt)" = "0b27a6c9c4f8b79a9151b325b987b1b51b82f96f" || { echo "ERROR: part10.txt no coincide"; exit 1; }
+          test "$(git hash-object payload/part11.txt)" = "220817e009a0b2ff444ec34cafcfe95813960151" || { echo "ERROR: part11.txt no coincide"; exit 1; }
+          test "$(git hash-object payload/part12.txt)" = "5f23dd37b165969971cc3fd6b2b1118709f91b7c" || { echo "ERROR: part12.txt no coincide"; exit 1; }
+          test "$(git hash-object payload/part13.txt)" = "877a2ec69e41a0815afb8bd383f51970d350750c" || { echo "ERROR: part13.txt no coincide"; exit 1; }
+          test "$(git hash-object payload/part14.txt)" = "d88c703903f710be9d4c2dea873cf59625ec3255" || { echo "ERROR: part14.txt no coincide"; exit 1; }
+          test "$(git hash-object payload/part15.txt)" = "c092d2b556c1fe33e390341b7cebbaedbcc0d1e5" || { echo "ERROR: part15.txt no coincide"; exit 1; }
+          test "$(git hash-object payload/part16.txt)" = "d9733da69146d4d3a6490ff6e9cfb4ffbb3842b3" || { echo "ERROR: part16.txt no coincide"; exit 1; }
+          test "$(git hash-object payload/part17.txt)" = "93948a6d8ddc8114b8227d31cf9627f2ab7e3298" || { echo "ERROR: part17.txt no coincide"; exit 1; }
+          test "$(git hash-object payload/part18.txt)" = "e22087029755298e86b53f9b34c050a1e4a676cf" || { echo "ERROR: part18.txt no coincide"; exit 1; }
+          echo "Los 18 bloques coinciden con la copia original."
 
       - name: Reconstruir index.html original
         shell: bash
@@ -30,54 +55,32 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import base64, gzip, hashlib
-
           parts = sorted(Path('payload').glob('part*.txt'))
-          if len(parts) != 18:
-              raise SystemExit(f'Se esperaban 18 bloques y se encontraron {len(parts)}')
-
-          compressed_parts = []
-          for p in parts:
-              text = ''.join(p.read_text(encoding='utf-8').split())
-              try:
-                  decoded = base64.b64decode(text, validate=True)
-              except Exception as exc:
-                  raise SystemExit(f'{p.name}: Base64 inválido: {exc}')
-              print(f'{p.name}: {len(text)} caracteres Base64 -> {len(decoded)} bytes')
-              compressed_parts.append(decoded)
-
-          compressed = b''.join(compressed_parts)
-          print('GZIP reconstruido:', len(compressed), 'bytes')
-          if compressed[:2] != b'\x1f\x8b':
-              raise SystemExit('La cabecera GZIP reconstruida no es válida')
-
-          try:
-              html = gzip.decompress(compressed)
-          except Exception as exc:
-              raise SystemExit(f'No se pudo descomprimir GZIP: {exc}')
-
+          raw = b''.join(base64.b64decode(p.read_text().strip(), validate=True) for p in parts)
+          html = gzip.decompress(raw)
           expected_size = 1158506
+          expected_sha = '0c1735ce6e3783fb715c55034d720916c4311997b6364b1f0271b9b4b921cf0a'
+          sha = hashlib.sha256(html).hexdigest()
           if len(html) != expected_size:
-              raise SystemExit(f'Tamaño inesperado: {len(html)} bytes; esperado {expected_size}')
+              raise SystemExit(f'Tamaño inesperado: {len(html)} != {expected_size}')
+          if sha != expected_sha:
+              raise SystemExit(f'SHA256 inesperado: {sha}')
           if b'Arma la salida' not in html:
-              raise SystemExit('No se encontró la marca de integridad "Arma la salida"')
-          if b'<!DOCTYPE html>' not in html and b'<!doctype html>' not in html:
-              raise SystemExit('El resultado no parece un documento HTML')
-
+              raise SystemExit('No se encontró el contenido esperado')
           Path('index.html').write_bytes(html)
-          print('index.html reconstruido:', len(html), 'bytes')
-          print('SHA256:', hashlib.sha256(html).hexdigest())
+          print('index.html OK:', len(html), 'bytes', sha)
           PY
 
       - name: Publicar HTML directo en main
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- index.html; then
-            echo "index.html ya está actualizado"
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html
+          git add index.html payload/part09.txt payload/part12.txt
+          if git diff --cached --quiet; then
+            echo "No hay cambios que publicar"
+            exit 0
+          fi
           git commit -m "Publicar aplicación como HTML directo"
           git push origin HEAD:main
