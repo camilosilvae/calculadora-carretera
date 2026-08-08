@@ -6,32 +6,63 @@
 <title>Calculadora de recorridos y peajes</title>
 <style>
 body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;background:#eae7e1;color:#141311;display:grid;min-height:100vh;place-items:center}
-main{max-width:520px;padding:32px;text-align:center}
+main{max-width:560px;padding:32px;text-align:center}
 h1{font-size:28px;margin:0 0 10px}
-p{line-height:1.5}
+p{line-height:1.5;margin:8px 0}.detalle{font-size:13px;color:#666;word-break:break-word}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 </head>
 <body>
-<main><h1>Cargando aplicación…</h1><p>Preparando la calculadora de recorridos y peajes.</p></main>
+<main><h1>Cargando aplicación…</h1><p>Preparando la calculadora de recorridos y peajes.</p><p class="detalle" id="detalle"></p></main>
 <script>
 (async()=>{
+  const detalle=document.getElementById("detalle");
   try{
+    const version="20260807-2";
     const files=Array.from({length:18},(_,i)=>`payload/part${String(i+1).padStart(2,"0")}.txt`);
-    const parts=await Promise.all(files.map(async f=>{
-      const r=await fetch(f,{cache:"force-cache"});
-      if(!r.ok) throw new Error(`${f}: ${r.status}`);
-      return (await r.text()).trim();
-    }));
-    const bin=atob(parts.join(""));
-    const bytes=new Uint8Array(bin.length);
-    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
-    const html=pako.ungzip(bytes,{to:"string"});
+    const chunks=[];
+    let total=0;
+
+    for(let i=0;i<files.length;i++){
+      detalle.textContent=`Cargando datos ${i+1} de ${files.length}…`;
+      const r=await fetch(`${files[i]}?v=${version}`,{cache:"no-store"});
+      if(!r.ok) throw new Error(`${files[i]}: HTTP ${r.status}`);
+      const b64=(await r.text()).replace(/\s+/g,"");
+      const bin=atob(b64);
+      const bytes=new Uint8Array(bin.length);
+      for(let j=0;j<bin.length;j++) bytes[j]=bin.charCodeAt(j);
+      chunks.push(bytes);
+      total+=bytes.length;
+    }
+
+    const gzip=new Uint8Array(total);
+    let offset=0;
+    for(const chunk of chunks){gzip.set(chunk,offset);offset+=chunk.length;}
+
+    if(gzip[0]!==0x1f || gzip[1]!==0x8b){
+      throw new Error("El paquete descargado no tiene una cabecera GZIP válida.");
+    }
+
+    if(typeof DecompressionStream!=="function"){
+      throw new Error("Este navegador no admite la descompresión necesaria. Actualiza Chrome, Safari, Edge o Firefox.");
+    }
+
+    detalle.textContent="Abriendo aplicación…";
+    const stream=new Blob([gzip]).stream().pipeThrough(new DecompressionStream("gzip"));
+    const html=await new Response(stream).text();
+
+    if(!html.includes("<!DOCTYPE html>") && !html.includes("<!doctype html>")){
+      throw new Error("El contenido reconstruido no parece ser un documento HTML válido.");
+    }
+    if(!html.includes("Arma la salida")){
+      throw new Error("La aplicación reconstruida no superó la comprobación de integridad.");
+    }
+
     document.open();
     document.write(html);
     document.close();
   }catch(err){
-    document.body.innerHTML=`<main><h1>No se pudo cargar la aplicación</h1><p>${String(err.message||err)}</p></main>`;
+    document.body.innerHTML=`<main><h1>No se pudo cargar la aplicación</h1><p>${String(err.message||err)}</p><p class="detalle">Recarga la página con Ctrl+Shift+R (Windows) o Cmd+Shift+R (Mac). Si persiste, avísame con una captura.</p></main>`;
+    console.error(err);
   }
 })();
 </script>
