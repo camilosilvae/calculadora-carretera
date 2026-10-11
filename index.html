@@ -156,6 +156,11 @@
   .peajes li:last-child{border-bottom:0}
   .peajes .nombre small{display:block;font-family:var(--dato);font-size:11px;color:var(--z5)}
   .peajes .valor{font-family:var(--dato);font-weight:500;white-space:nowrap}
+  .nota-peajes{font-size:12.5px;color:var(--z5);line-height:1.5;margin:-4px 0 14px}
+  .peajes .valor-tarifa{display:flex;flex-direction:column;align-items:flex-end;gap:2px;min-width:92px}
+  .peajes .estado-tarifa{font:9.5px/1.2 var(--dato);letter-spacing:.07em;text-transform:uppercase;color:var(--ganancia)}
+  .peajes .estado-tarifa.pendiente{color:var(--ambar)}
+  .peajes .tipo-tarifa{display:inline-block;font:9.5px/1.2 var(--dato);letter-spacing:.06em;text-transform:uppercase;background:var(--z8);color:var(--z3);padding:2px 5px;border-radius:2px;margin-left:6px}
   .peajes .mini{flex:0 0 92px;display:flex;align-items:center;background:#FFFCF6;
     border:1px solid var(--ambar);border-radius:2px}
   .peajes .mini span{font-family:var(--dato);font-size:11px;color:var(--z5);padding-left:6px}
@@ -414,7 +419,8 @@
       </div>
 
       <div class="bloque">
-        <p class="titulo-bloque">Peajes del circuito <span id="resumenPeajes">—</span></p>
+        <p class="titulo-bloque">Peajes y tarifas del circuito <span id="resumenPeajes">—</span></p>
+        <p class="nota-peajes">Se muestran solo los cobros detectados en esta ruta. Los valores <b>incluidos</b> usan el tarifario anual activo; cualquier cobro sin valor seguro queda marcado como <b>no incluido</b> y no se suma al presupuesto.</p>
         <div id="tramos"></div>
       </div>
 
@@ -452,7 +458,7 @@
         </div>
       </details>
 
-      <details id="panelCatalogoNacional">
+      <details id="panelCatalogoNacional" hidden aria-hidden="true">
         <summary>Datos nacionales de pórticos y tarifas</summary>
         <div>
           <p class="nota-panel"><b>La base geográfica y las tarifas se actualizan por separado.</b>
@@ -569,7 +575,7 @@
   </div>
 
   <div class="pie">
-    <p><b>Qué optimiza y qué no.</b> El orden lo resuelve el servicio de rutas de OpenStreetMap minimizando el tiempo total. El lugar donde termina la jornada se configura aparte: volver a la base, terminar en la última parada o continuar hacia otra dirección. El final elegido se mantiene fijo durante la optimización. No sabe de luz, ni de la hora en que el dueño te abre la puerta, ni de peajes. Por eso puedes reordenar a mano con las flechas: el costo se recalcula y ves de inmediato cuánto te cuesta esa decisión. Si una propiedad tiene fachada poniente y la quieres al atardecer, mándala al final aunque el optimizador diga otra cosa.</p>
+    <p><b>Qué optimiza y qué no.</b> El orden lo resuelve el servicio de rutas OSRM usando datos de OpenStreetMap y minimizando el tiempo total. El lugar donde termina la jornada se configura aparte: volver a la base, terminar en la última parada o continuar hacia otra dirección. El final elegido se mantiene fijo durante la optimización. No sabe de luz, ni de la hora en que el dueño te abre la puerta, ni de peajes. Por eso puedes reordenar a mano con las flechas: el costo se recalcula y ves de inmediato cuánto te cuesta esa decisión. Si una propiedad tiene fachada poniente y la quieres al atardecer, mándala al final aunque el optimizador diga otra cosa.</p>
     <p><b>Las horas de llegada son estimadas</b> sumando el trayecto más la duración de cada sesión. Sirven sobre todo para dos cosas: saber a qué hora vuelves —que define si pagas peaje en punta— y detectar cuándo la jornada no cabe en el día.</p>
     <p><b>Ida y vuelta.</b> En un circuito con varias paradas, el sentido de la primera salida y el del regreso pueden ser distintos, y la punta de las interurbanas depende del sentido. El cálculo los trata por separado.</p>
     <p><b>Datos separados y versionados.</b> El mapa y el recorrido usan Nominatim y OSRM. Los cruces se detectan con la base geográfica de pórticos; los valores se obtienen del paquete tarifario anual. Cambiar las tarifas no modifica coordenadas.</p>
@@ -1757,6 +1763,9 @@ function tramoPeajes(tramoIndex,minutos,sentido){
       lineas.push({
         nombre:p.nombre,
         ruta:p.avoDetalle+" · cobro AVO no aplicado",
+        rutaNombre:"Américo Vespucio Oriente (AVO I)",
+        tipoTarifa:"Pareja entrada–salida pendiente",
+        direccion:"",esAvo:true,
         punta:false,monto:0,verificado:false,manual:false,
         avoAmbiguo:true
       });
@@ -1780,6 +1789,8 @@ function tramoPeajes(tramoIndex,minutos,sentido){
 
       lineas.push({
         nombre:p.nombre,ruta:detalle,punta:ev.punta,
+        rutaNombre:p.ruta||"",tipoTarifa:ev.tipo||"Tarifa aplicada",
+        direccion:p.direccion||"",esAvo:!!p.esViajeAvo,
         monto:ev.monto,verificado:true,manual:false,
         horarioEstimado:ev.horarioEstimado,
         avoValidado:!!p.avoValidado
@@ -1791,6 +1802,8 @@ function tramoPeajes(tramoIndex,minutos,sentido){
         ruta:(p.esViajeAvo
           ? (p.avoDetalle+" · tarifa AVO ausente")
           : (p.ruta+" · tarifa ausente en el catálogo")),
+        rutaNombre:p.ruta||"",tipoTarifa:"Tarifa pendiente",
+        direccion:p.direccion||"",esAvo:!!p.esViajeAvo,
         punta:false,monto:0,verificado:false,manual:false
       });
     }
@@ -1859,8 +1872,10 @@ function iniciarMapa(){
   $("mapa").classList.add("activo");
   $("mapaEspera").classList.add("oculto");
   mapa=L.map("mapa",{scrollWheelZoom:false});
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    {attribution:"&copy; OpenStreetMap &copy; CARTO",maxZoom:19,subdomains:"abcd"}).addTo(mapa);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+    maxZoom:19
+  }).addTo(mapa);
   capaRuta=L.layerGroup().addTo(mapa);
   capaPuntos=L.layerGroup().addTo(mapa);
   mapa.on("click",function(){ mapa.scrollWheelZoom.enable(); });
@@ -2215,15 +2230,28 @@ function renderTramo(titulo,d,color,minutos,etiquetaHora){
   var sentido={poniente:"hacia poniente",oriente:"hacia oriente",
                norte:"hacia el norte",sur:"hacia el sur"}[d.sentido]||d.sentido;
   var filas=d.lineas.map(function(l){
-    var derecha='<span class="valor">'+(l.verificado?pesos(l.monto):"—")+"</span>";
+    var tipo=l.tipoTarifa||"";
+    var metadata=[];
+    if(l.rutaNombre) metadata.push(l.rutaNombre);
+    if(l.direccion) metadata.push(l.direccion);
+    if(!metadata.length&&l.ruta) metadata.push(l.ruta);
+
+    var derecha='<span class="valor-tarifa"><span class="valor">'+
+      (l.verificado?pesos(l.monto):"—")+'</span>'+
+      '<span class="estado-tarifa'+(l.verificado?'':' pendiente')+'">'+
+      (l.verificado?'Incluido en total':'No incluido')+'</span></span>';
+
     return "<li><span class='nombre"+(l.verificado?"":" sin-verificar")+"'>"+esc(l.nombre)+
+      (tipo?'<span class="tipo-tarifa">'+esc(tipo)+"</span>":"")+
       (l.punta?'<span class="etiqueta-punta">punta</span>':"")+
-      "<small>"+esc(l.ruta)+(l.verificado?"":" · valor por confirmar")+"</small></span>"+
+      "<small>"+esc(metadata.join(" · "))+
+      (l.horarioEstimado?" · horario estimado":"")+
+      (l.verificado?"":" · tarifa por confirmar")+"</small></span>"+
       derecha+"</li>";
   }).join("");
   if(!filas) filas=indiceCatalogo
-    ? '<li><span class="nombre" style="color:var(--z5)">Sin peajes detectados en este tramo</span><span class="valor">$0</span></li>'
-    : '<li><span class="nombre sin-verificar">Peajes no evaluados<small>Carga el catálogo nacional MOP/manual</small></span><span class="valor">—</span></li>';
+    ? '<li><span class="nombre" style="color:var(--z5)">Sin peajes detectados en este tramo<small>El tarifario no aplica cobros a este segmento.</small></span><span class="valor-tarifa"><span class="valor">$0</span><span class="estado-tarifa">Sin cobro</span></span></li>'
+    : '<li><span class="nombre sin-verificar">Peajes no evaluados<small>Los datos tarifarios no están disponibles.</small></span><span class="valor-tarifa"><span class="valor">—</span><span class="estado-tarifa pendiente">No incluido</span></span></li>';
   return '<div class="tramo"><div class="tramo-cabeza">'+
     '<span class="tramo-rotulo"><span class="punto-tramo" style="background:'+color+'"></span>'+
     titulo+'</span><span class="suma">'+pesos(d.total)+"</span></div>"+
@@ -2339,8 +2367,11 @@ function render(){
 
   $("resumenRuta").textContent=
     coma(c.km)+" km · "+Math.round(c.minutos)+" min de manejo";
+  var anoTarifario=indiceCatalogo&&indiceCatalogo.metadata&&
+    indiceCatalogo.metadata.tariff_year||"—";
   $("resumenPeajes").textContent=c.catalogoCargado
-    ? pesos(c.peajes)+" confirmados en el recorrido"
+    ? pesos(c.peajes)+" incluidos · tarifario "+anoTarifario+
+      (c.sinValor?" · "+c.sinValor+" pendiente"+(c.sinValor===1?"":"s"):"")
     : "peajes sin calcular";
 
   $("tramos").innerHTML=c.agenda.tramos.map(function(t,i){
@@ -2380,10 +2411,14 @@ function render(){
 
   $("detLitros").textContent=
     coma(c.litros)+" L en "+Math.round(c.km)+" km";
+  var confirmados=c.tramosCobro.reduce(function(n,t){
+    return n+t.lineas.filter(function(l){return l.verificado;}).length;
+  },0);
   $("detPeajes").textContent=c.catalogoCargado
-    ? c.tramosCobro.length+" tramos · "+circuito.peajes.length+
-      " cruces o viajes detectados"
-    : "Catálogo nacional no cargado";
+    ? confirmados+" cobro"+(confirmados===1?"":"s")+" incluido"+(confirmados===1?"":"s")+
+      " · tarifario "+anoTarifario+
+      (c.sinValor?" · "+c.sinValor+" no incluido"+(c.sinValor===1?"":"s"):"")
+    : "Datos tarifarios no disponibles";
   $("detReparto").textContent=c.props
     ?"repartido entre "+c.props+(c.props===1?" propiedad":" propiedades")
     :"sin propiedades trabajadas";
