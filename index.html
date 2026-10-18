@@ -267,16 +267,25 @@
     text-align:right}
   .parada .reloj small{display:block;color:var(--z5);font-size:10.5px}
   .hora24-wrap{position:relative;display:inline-flex;flex-direction:column;align-items:flex-end}
-  .hora24-trigger{border:1px solid var(--z7);background:var(--papel);border-radius:3px;padding:5px 8px;
-    font:600 13px/1 var(--dato);color:var(--tinta);cursor:pointer;min-width:66px;text-align:center}
-  .hora24-trigger:hover,.hora24-trigger[aria-expanded="true"]{border-color:var(--z5);background:#fff}
-  .hora24-panel{position:absolute;right:0;top:34px;z-index:1200;width:220px;background:#fff;
+  .salida-botones{display:flex;gap:7px;align-items:flex-start}
+  .salida-control{display:flex;flex-direction:column;align-items:flex-end}
+  .hora24-trigger,.fecha24-trigger{border:1px solid var(--z7);background:var(--papel);border-radius:3px;padding:5px 8px;
+    font:600 13px/1 var(--dato);color:var(--tinta);cursor:pointer;text-align:center}
+  .hora24-trigger{min-width:66px}
+  .fecha24-trigger{min-width:94px}
+  .hora24-trigger:hover,.hora24-trigger[aria-expanded="true"],
+  .fecha24-trigger:hover,.fecha24-trigger[aria-expanded="true"]{border-color:var(--z5);background:#fff}
+  .hora24-panel{position:absolute;right:0;top:40px;z-index:1200;width:250px;background:#fff;
     border:1px solid var(--z7);box-shadow:0 10px 28px rgba(20,19,17,.16);padding:12px;text-align:left}
   .hora24-panel[hidden]{display:none}
   .hora24-titulo{font:600 10px/1.2 var(--dato);letter-spacing:.08em;text-transform:uppercase;color:var(--z5);margin-bottom:8px}
   .hora24-controles{display:flex;align-items:center;gap:6px}
   .hora24-controles select{flex:1;min-width:0;border:1px solid var(--z7);border-radius:2px;background:#fff;
     padding:7px 5px;font:600 14px/1 var(--dato);color:var(--tinta)}
+  .fecha24-campo{margin-bottom:11px}
+  .fecha24-campo label{display:block;font:600 9.5px/1.2 var(--dato);letter-spacing:.07em;text-transform:uppercase;color:var(--z5);margin-bottom:5px}
+  .fecha24-campo input{width:100%;box-sizing:border-box;border:1px solid var(--z7);border-radius:2px;background:#fff;
+    padding:7px 8px;font:600 13px/1 var(--dato);color:var(--tinta)}
   .hora24-dos-puntos{font:700 15px/1 var(--dato);color:var(--z4)}
   .hora24-acciones{display:grid;grid-template-columns:1fr auto;gap:6px;margin-top:10px}
   .hora24-acciones button{border:1px solid var(--z7);background:var(--papel);padding:8px 9px;border-radius:2px;
@@ -443,11 +452,7 @@
 
       <div class="bloque">
         <p class="titulo-bloque">La jornada <span>tiempo y tarifa</span></p>
-        <div class="campo">
-          <label for="fecha">Fecha
-            <span class="pista">Define temporada y día de punta</span></label>
-          <input type="date" id="fecha">
-        </div>
+        <input type="date" id="fecha" hidden>
         <div class="campo">
           <label for="minSitio">Duración de cada sesión
             <span class="pista">Se suma entre parada y parada</span></label>
@@ -671,6 +676,16 @@ function reloj(min){
 }
 function hora24Valida(h){
   return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(String(h||""));
+}
+function fechaIsoValida(v){
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(v||""));
+}
+function etiquetaFechaSalida(v){
+  if(!fechaIsoValida(v)) return "Elegir día";
+  var p=v.split("-"),f=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]));
+  var dias=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+  return dias[f.getDay()]+" "+String(f.getDate()).padStart(2,"0")+"/"+
+    String(f.getMonth()+1).padStart(2,"0");
 }
 function esFestivoNacional2026(fecha){
   if(!fecha||fecha.getFullYear()!==2026) return false;
@@ -1366,6 +1381,7 @@ var comparacion=null;    /* {kmOriginal,minOriginal} */
 var horaSalida="09:00";
 var selectorHoraAbierto=false;
 var horaPendiente="09:00";
+var fechaPendiente="";
 var mapa=null, capaRuta=null, capaPuntos=null, temporizador;
 
 function fechaElegida(){
@@ -2254,10 +2270,13 @@ function dibujarMapa(){
    ============================================================ */
 function confirmarSelectorHora(){
   if(!selectorHoraAbierto) return;
-  var hh=$("hora24Horas"),mm=$("hora24Minutos");
+  var hh=$("hora24Horas"),mm=$("hora24Minutos"),fd=$("fecha24Input");
   if(hh&&mm) horaPendiente=hh.value+":"+mm.value;
+  if(fd&&fechaIsoValida(fd.value)) fechaPendiente=fd.value;
   if(!hora24Valida(horaPendiente)) horaPendiente=horaSalida;
+  if(!fechaIsoValida(fechaPendiente)) fechaPendiente=$("fecha").value;
   horaSalida=horaPendiente;
+  if(fechaIsoValida(fechaPendiente)) $("fecha").value=fechaPendiente;
   selectorHoraAbierto=false;
   render();
   guardar();
@@ -2289,10 +2308,21 @@ function renderParadas(){
   liBase.innerHTML='<span class="orden">◇</span>'+
     '<span class="texto">Base<small>'+esc(base?base.etiqueta:"")+"</small></span>"+
     '<span class="reloj hora24-wrap" id="hora24Wrap">'+
-      '<button type="button" class="hora24-trigger" id="horaSalidaBtn" aria-expanded="false">'+esc(horaSalida)+'</button>'+
-      '<small>hora de salida · 24 h</small>'+
+      '<span class="salida-botones">'+
+        '<span class="salida-control">'+
+          '<button type="button" class="fecha24-trigger" id="fechaSalidaBtn" aria-expanded="false">'+
+            esc(etiquetaFechaSalida($("fecha").value))+'</button>'+
+          '<small>día / fecha</small>'+
+        '</span>'+
+        '<span class="salida-control">'+
+          '<button type="button" class="hora24-trigger" id="horaSalidaBtn" aria-expanded="false">'+esc(horaSalida)+'</button>'+
+          '<small>hora · 24 h</small>'+
+        '</span>'+
+      '</span>'+
       '<div class="hora24-panel" id="hora24Panel" hidden>'+
-        '<div class="hora24-titulo">Hora de salida</div>'+
+        '<div class="hora24-titulo">Fecha y hora de salida</div>'+
+        '<div class="fecha24-campo"><label for="fecha24Input">Fecha</label>'+
+          '<input type="date" id="fecha24Input"></div>'+
         '<div class="hora24-controles">'+
           '<select id="hora24Horas" aria-label="Hora"></select>'+
           '<span class="hora24-dos-puntos">:</span>'+
@@ -2305,7 +2335,7 @@ function renderParadas(){
     '</span>';
   ul.appendChild(liBase);
 
-  var hh=$("hora24Horas"),mm=$("hora24Minutos");
+  var hh=$("hora24Horas"),mm=$("hora24Minutos"),fd=$("fecha24Input");
   for(var h24=0;h24<24;h24++){
     var oh=document.createElement("option");
     oh.value=String(h24).padStart(2,"0"); oh.textContent=oh.value; hh.appendChild(oh);
@@ -2314,32 +2344,41 @@ function renderParadas(){
     var om=document.createElement("option");
     om.value=String(m24).padStart(2,"0"); om.textContent=om.value; mm.appendChild(om);
   }
-  function cargarHoraPendiente(){
+  function cargarSalidaPendiente(){
     horaPendiente=hora24Valida(horaSalida)?horaSalida:"09:00";
+    fechaPendiente=fechaIsoValida($("fecha").value)?$("fecha").value:"";
     var partesHora=horaPendiente.split(":");
     hh.value=partesHora[0]; mm.value=partesHora[1];
+    fd.value=fechaPendiente;
   }
-  function abrirSelectorHora(){
-    cargarHoraPendiente();
+  function abrirSelectorSalida(){
+    cargarSalidaPendiente();
     selectorHoraAbierto=true;
     $("hora24Panel").hidden=false;
     $("horaSalidaBtn").setAttribute("aria-expanded","true");
+    $("fechaSalidaBtn").setAttribute("aria-expanded","true");
   }
-  $("horaSalidaBtn").addEventListener("click",function(e){
-    e.stopPropagation();
-    if(selectorHoraAbierto) confirmarSelectorHora();
-    else abrirSelectorHora();
+  [$("horaSalidaBtn"),$("fechaSalidaBtn")].forEach(function(btn){
+    btn.addEventListener("click",function(e){
+      e.stopPropagation();
+      if(selectorHoraAbierto) confirmarSelectorHora();
+      else abrirSelectorSalida();
+    });
   });
   [hh,mm].forEach(function(sel){
     sel.addEventListener("change",function(){
       horaPendiente=hh.value+":"+mm.value;
     });
   });
+  fd.addEventListener("change",function(){
+    if(fechaIsoValida(fd.value)) fechaPendiente=fd.value;
+  });
   $("hora24Aplicar").addEventListener("click",function(){ confirmarSelectorHora(); });
   $("hora24Cancelar").addEventListener("click",function(){
     selectorHoraAbierto=false;
     $("hora24Panel").hidden=true;
     $("horaSalidaBtn").setAttribute("aria-expanded","false");
+    $("fechaSalidaBtn").setAttribute("aria-expanded","false");
   });
 
   paradas.forEach(function(p,i){
@@ -3011,7 +3050,7 @@ function guardar(){
   clearTimeout(temporizador);
   temporizador=setTimeout(function(){
     var cfg={
-      horaSalida:horaSalida,campos:{},paradas:paradas,
+      horaSalida:horaSalida,fechaSalida:$("fecha").value,campos:{},paradas:paradas,
       modoFin:modoFin,destinoFinal:destinoFinal,tipoNuevaParada:tipoNuevaParada
     };
     CAMPOS.forEach(function(k){ cfg.campos[k]=$(k).value; });
@@ -3032,9 +3071,10 @@ document.addEventListener("pointerdown",function(e){
 document.addEventListener("keydown",function(e){
   if(e.key!=="Escape"||!selectorHoraAbierto) return;
   selectorHoraAbierto=false;
-  var panel=$("hora24Panel"),btn=$("horaSalidaBtn");
+  var panel=$("hora24Panel"),btn=$("horaSalidaBtn"),btnFecha=$("fechaSalidaBtn");
   if(panel) panel.hidden=true;
   if(btn) btn.setAttribute("aria-expanded","false");
+  if(btnFecha) btnFecha.setAttribute("aria-expanded","false");
 });
 
 document.querySelectorAll("[data-tipo-nuevo]").forEach(function(b){
@@ -3085,7 +3125,7 @@ $("btnQuitarCatalogo").addEventListener("click",quitarCatalogo);
   });
 });
 
-CAMPOS.concat(["fecha"]).forEach(function(k){
+CAMPOS.forEach(function(k){
   $(k).addEventListener("input",function(){ render(); guardar(); });
 });
 
@@ -3102,6 +3142,7 @@ CAMPOS.concat(["fecha"]).forEach(function(k){
     try{
       var cfg=JSON.parse(g);
       if(cfg.horaSalida&&hora24Valida(cfg.horaSalida)) horaSalida=cfg.horaSalida;
+      if(cfg.fechaSalida&&fechaIsoValida(cfg.fechaSalida)) $("fecha").value=cfg.fechaSalida;
       if(cfg.modoFin) modoFin=modoFinValido(cfg.modoFin);
       if(cfg.destinoFinal&&isFinite(Number(cfg.destinoFinal.lat))&&
           isFinite(Number(cfg.destinoFinal.lon)))
