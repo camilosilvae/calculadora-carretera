@@ -436,6 +436,7 @@
 
       <div class="bloque">
         <p class="titulo-bloque">Peajes y tarifas del circuito <span id="resumenPeajes">—</span></p>
+        <p class="nota-peajes" id="resumenSimulacion">Simulación tarifaria</p>
         <p class="nota-peajes">Se muestran solo los cobros detectados en esta ruta. Los valores <b>incluidos</b> usan el tarifario anual activo; cualquier cobro sin valor seguro queda marcado como <b>no incluido</b> y no se suma al presupuesto.</p>
         <div id="tramos"></div>
       </div>
@@ -707,18 +708,39 @@ function minutoEnRango(min,a,b){
   return a<b ? min>=a&&min<b : (min>=a||min<b);
 }
 
-function claveHorarioPortico(filas){
+function normalizarDireccionClave(d){
+  return String(d||"").replace(/[–—]/g,"-").replace(/\s*[-]\s*/g," - ").replace(/\s+/g," ").trim();
+}
+function claveHorarioPortico(filas,punto){
+  if(punto&&punto.route_id&&punto.codigo){
+    var dirP=normalizarDireccionClave(punto.direccion||"");
+    if(dirP){
+      var kp=punto.route_id+"|"+String(punto.codigo).replace(/^PA\s+/,"PA")+"|"+dirP;
+      if(HORARIOS_PORTICOS_2026[kp]) return kp;
+    }
+  }
   var f=(filas||[]).find(function(x){
     return x&&x.route_id&&x.point_code&&x.direction;
   });
   if(!f) return null;
-  return f.route_id+"|"+String(f.point_code).replace(/^PA\s+/,"PA")+"|"+String(f.direction).trim();
+  var k=f.route_id+"|"+String(f.point_code).replace(/^PA\s+/,"PA")+"|"+
+    normalizarDireccionClave(f.direction);
+  return HORARIOS_PORTICOS_2026[k]?k:null;
 }
-function tipoTarifaPorHorarioPortico(filas,fecha,min){
-  var clave=claveHorarioPortico(filas);
+function detalleReglaHorario(regla,dia,tipo,min){
+  var bandas=(regla&&regla[dia])||{};
+  var rangos=bandas[tipo]||[];
+  for(var i=0;i<rangos.length;i++){
+    if(minutoEnRango(min,rangos[i][0],rangos[i][1])){
+      return reloj(rangos[i][0])+"–"+reloj(rangos[i][1]);
+    }
+  }
+  return tipo==="TBFP"?"fuera de TBP/TS":"";
+}
+function tipoTarifaPorHorarioPortico(filas,fecha,min,punto){
+  var clave=claveHorarioPortico(filas,punto);
   if(!clave) return null;
   var regla=HORARIOS_PORTICOS_2026[clave];
-  if(!regla) return null;
   var dia=tipoDiaTarifario(fecha);
   var bandas=regla[dia]||{};
   function coincide(tipo){
@@ -726,9 +748,13 @@ function tipoTarifaPorHorarioPortico(filas,fecha,min){
       return minutoEnRango(min,r[0],r[1]);
     });
   }
-  if(coincide("TS")) return "TS";
-  if(coincide("TBP")) return "TBP";
-  return "TBFP";
+  var tipo=coincide("TS")?"TS":(coincide("TBP")?"TBP":"TBFP");
+  return {
+    tipo:tipo,
+    clave:clave,
+    dia:dia,
+    detalle:detalleReglaHorario(regla,dia,tipo,min)
+  };
 }
 function segmentoAplicaDia(segmento,fecha){
   var t=textoHorarioNormalizado(segmento),dia=tipoDiaTarifario(fecha);
@@ -1491,7 +1517,7 @@ function tarifaVigenteEnFecha(t,fecha){
     String(fecha.getDate()).padStart(2,"0");
   return (!t.effective_from||iso>=t.effective_from)&&(!t.effective_to||iso<=t.effective_to);
 }
-function elegirTarifaFilas(filas,fecha,min,routeId,sentido){
+function elegirTarifaFilas(filas,fecha,min,routeId,sentido,punto){
   filas=filas.filter(function(t){ return tarifaVigenteEnFecha(t,fecha); });
   if(!filas.length) return null;
 
@@ -1502,9 +1528,9 @@ function elegirTarifaFilas(filas,fecha,min,routeId,sentido){
 
   var punta=false,elegida=null,horarioEstimado=false,horarioFuente="fijo";
 
-  var tipoExacto=tipoTarifaPorHorarioPortico(filas,fecha,min);
-  if(tipoExacto&&porTipo[tipoExacto]){
-    elegida=porTipo[tipoExacto];
+  var exacta=tipoTarifaPorHorarioPortico(filas,fecha,min,punto);
+  if(exacta&&porTipo[exacta.tipo]){
+    elegida=porTipo[exacta.tipo];
     horarioFuente="oficial_portico";
   }
 
@@ -1579,7 +1605,10 @@ function elegirTarifaFilas(filas,fecha,min,routeId,sentido){
     tipo:elegida.tariff_type||"",
     fila:elegida,
     horarioEstimado:horarioEstimado,
-    horarioFuente:horarioFuente
+    horarioFuente:horarioFuente,
+    diaTarifario:tipoDiaTarifario(fecha),
+    reglaDetalle:exacta&&horarioFuente==="oficial_portico"?exacta.detalle:
+      (horarioFuente==="oficial"?(elegida.schedule_text||""):"")
   };
 }
 
@@ -1986,7 +2015,7 @@ function tramoPeajes(tramoIndex,minutos,sentido){
     var filas=p.esViajeAvo?p.filasTarifa:filasTarifaPunto(p);
     var minutoPaso=minutoPasoPeaje(p,tramoIndex,minutos);
     var ev=elegirTarifaFilas(
-      filas,fecha,minutoPaso,p.route_id,sentido
+      filas,fecha,minutoPaso,p.route_id,sentido,p
     );
     if(ev){
       total+=ev.monto;
@@ -2007,6 +2036,8 @@ function tramoPeajes(tramoIndex,minutos,sentido){
         horaPaso:reloj(minutoPaso),minutoPaso:minutoPaso,
         horarioEstimado:ev.horarioEstimado,
         horarioFuente:ev.horarioFuente,
+        diaTarifario:ev.diaTarifario,
+        reglaDetalle:ev.reglaDetalle,
         reglaHorariaOficial:ev.horarioFuente==="oficial_portico"||ev.horarioFuente==="oficial",
         avoValidado:!!p.avoValidado
       });
@@ -2156,7 +2187,7 @@ function dibujarMapa(){
       : minutosDe(horaSalida);
     var ev=elegirTarifaFilas(
       filas,fechaElegida(),minutoPasoMapa,
-      p.route_id,tramoActual?tramoActual.sentido:"oriente"
+      p.route_id,tramoActual?tramoActual.sentido:"oriente",p
     );
     var ic=L.divIcon({
       className:"",
@@ -2165,7 +2196,8 @@ function dibujarMapa(){
     });
     var det=p.ruta+
       (p.direccion?" · "+esc(p.direccion):"")+"<br>"+
-      (ev?(esc(ev.tipo)+" "+pesos(ev.monto)+" · paso "+reloj(minutoPasoMapa)):
+      (ev?(esc(ev.tipo)+" "+pesos(ev.monto)+" · paso "+reloj(minutoPasoMapa)+
+        (ev.reglaDetalle?" · "+esc(ev.reglaDetalle):"")):
         "Tarifa ausente en el catálogo")+
       "<br>Detección "+esc(p.confianzaDeteccion||"sin clasificar")+
       " · "+Math.round(Number(p.distanciaRuta)||0)+" m"+
@@ -2507,8 +2539,13 @@ function renderTramo(titulo,d,color,minutos,etiquetaHora){
     var metadata=[];
     if(l.rutaNombre) metadata.push(l.rutaNombre);
     if(l.direccion) metadata.push(l.direccion);
-    if(l.horaPaso) metadata.push("paso estimado "+l.horaPaso+
-      (l.reglaHorariaOficial?" · horario oficial":""));
+    if(l.horaPaso){
+      var etiquetaDia={laboral:"día laboral",sabado:"sábado",domingo:"domingo",festivo:"festivo"}[l.diaTarifario]||l.diaTarifario||"";
+      metadata.push("paso estimado "+l.horaPaso+
+        (etiquetaDia?" · "+etiquetaDia:"")+
+        (l.reglaHorariaOficial?" · horario oficial":""));
+      if(l.reglaDetalle) metadata.push("franja "+l.reglaDetalle);
+    }
     if(!metadata.length&&l.ruta) metadata.push(l.ruta);
 
     var derecha='<span class="valor-tarifa"><span class="valor">'+
@@ -2644,6 +2681,10 @@ function render(){
     coma(c.km)+" km · "+Math.round(c.minutos)+" min de manejo";
   var anoTarifario=indiceCatalogo&&indiceCatalogo.metadata&&
     indiceCatalogo.metadata.tariff_year||"—";
+  var fSim=fechaElegida(),dias=["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+  $("resumenSimulacion").textContent="Simulación: "+dias[fSim.getDay()]+" "+
+    String(fSim.getDate()).padStart(2,"0")+"/"+String(fSim.getMonth()+1).padStart(2,"0")+
+    "/"+fSim.getFullYear()+" · salida "+horaSalida;
   $("resumenPeajes").textContent=c.catalogoCargado
     ? pesos(c.peajes)+" incluidos · tarifario "+anoTarifario+
       (c.sinValor?" · "+c.sinValor+" pendiente"+(c.sinValor===1?"":"s"):"")
