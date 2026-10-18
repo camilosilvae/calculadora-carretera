@@ -266,6 +266,23 @@
   .parada .reloj{font-family:var(--dato);font-size:12px;color:var(--z2);white-space:nowrap;
     text-align:right}
   .parada .reloj small{display:block;color:var(--z5);font-size:10.5px}
+  .hora24-wrap{position:relative;display:inline-flex;flex-direction:column;align-items:flex-end}
+  .hora24-trigger{border:1px solid var(--z7);background:var(--papel);border-radius:3px;padding:5px 8px;
+    font:600 13px/1 var(--dato);color:var(--tinta);cursor:pointer;min-width:66px;text-align:center}
+  .hora24-trigger:hover,.hora24-trigger[aria-expanded="true"]{border-color:var(--z5);background:#fff}
+  .hora24-panel{position:absolute;right:0;top:34px;z-index:1200;width:220px;background:#fff;
+    border:1px solid var(--z7);box-shadow:0 10px 28px rgba(20,19,17,.16);padding:12px;text-align:left}
+  .hora24-panel[hidden]{display:none}
+  .hora24-titulo{font:600 10px/1.2 var(--dato);letter-spacing:.08em;text-transform:uppercase;color:var(--z5);margin-bottom:8px}
+  .hora24-controles{display:flex;align-items:center;gap:6px}
+  .hora24-controles select{flex:1;min-width:0;border:1px solid var(--z7);border-radius:2px;background:#fff;
+    padding:7px 5px;font:600 14px/1 var(--dato);color:var(--tinta)}
+  .hora24-dos-puntos{font:700 15px/1 var(--dato);color:var(--z4)}
+  .hora24-acciones{display:flex;justify-content:flex-end;gap:6px;margin-top:10px}
+  .hora24-acciones button{border:1px solid var(--z7);background:var(--papel);padding:6px 8px;border-radius:2px;
+    font:600 10px/1 var(--dato);cursor:pointer}
+  .hora24-acciones .aplicar{background:var(--tinta);color:#fff;border-color:var(--tinta)}
+  .hora24-ayuda{display:block;margin-top:7px;font:10px/1.35 var(--dato);color:var(--z5);white-space:normal}
   .parada .quitar{border:0;background:transparent;color:var(--z5);cursor:pointer;
     font-size:19px;line-height:1;padding:0 3px}
   .parada .quitar:hover{color:var(--perdida)}
@@ -618,6 +635,20 @@ var REGLAS={
   r60:function(f,min,s){
     if(s!=="oriente"||f.getDay()!==0) return false;
     return min>=1020 && min<(esTemporadaAlta(f)?1260:1140);
+  },
+  nororiente:function(f,min){
+    var dia=tipoDiaTarifario(f),en=function(a,b){return min>=a&&min<b;};
+    if(dia==="laboral") return en(420,540)||en(1140,1260);
+    if(dia==="sabado") return en(480,600)||en(1020,1260);
+    if(dia==="domingo") return en(480,600);
+    return false;
+  },
+  r78:function(f,min,s){
+    var dia=f.getDay(),alta=esTemporadaAlta(f),en=function(a,b){return min>=a&&min<b;};
+    if(!alta) return false;
+    if(s==="oriente") return dia===0&&en(1080,1320);
+    if(s==="poniente") return (dia===5&&en(1080,1320))||(dia===6&&en(600,780));
+    return false;
   }
 };
 
@@ -635,6 +666,76 @@ function minutosDe(h){ var p=(h||"09:00").split(":"); return parseInt(p[0],10)*6
 function reloj(min){
   var m=((Math.round(min)%1440)+1440)%1440;
   return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");
+}
+function hora24Valida(h){
+  return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(String(h||""));
+}
+function esFestivoNacional2026(fecha){
+  if(!fecha||fecha.getFullYear()!==2026) return false;
+  var clave=String(fecha.getMonth()+1).padStart(2,"0")+"-"+String(fecha.getDate()).padStart(2,"0");
+  return [
+    "01-01","04-03","04-04","05-01","05-21","06-21","06-29","07-16",
+    "08-15","09-18","09-19","10-12","10-31","11-01","12-08","12-25"
+  ].indexOf(clave)>=0;
+}
+function tipoDiaTarifario(fecha){
+  if(esFestivoNacional2026(fecha)) return "festivo";
+  var d=fecha.getDay();
+  if(d===6) return "sabado";
+  if(d===0) return "domingo";
+  return "laboral";
+}
+function textoHorarioNormalizado(t){
+  return String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[–—]/g,"-").replace(/\s+/g," ").trim().toLowerCase();
+}
+function rangosHorario(texto){
+  var txt=textoHorarioNormalizado(texto),out=[],m;
+  var re=/(\d{1,2}):(\d{2})\s*(?:-|a)\s*(\d{1,2}):(\d{2})/g;
+  while((m=re.exec(txt))){
+    var a=Number(m[1])*60+Number(m[2]);
+    var b=Number(m[3])*60+Number(m[4]);
+    if(a>=0&&a<=1439&&b>=0&&b<=1440) out.push([a,b]);
+  }
+  return out;
+}
+function minutoEnRango(min,a,b){
+  min=((Math.round(min)%1440)+1440)%1440;
+  if(a===b) return true;
+  if(b===0&&a>0) b=1440;
+  return a<b ? min>=a&&min<b : (min>=a||min<b);
+}
+function segmentoAplicaDia(segmento,fecha){
+  var t=textoHorarioNormalizado(segmento),dia=tipoDiaTarifario(fecha);
+  var tieneEtiqueta=/(l-v|lunes|viernes|laboral|sabado|domingo|festivo)/.test(t);
+  if(!tieneEtiqueta) return null;
+  if(/domingo\s*\/\s*festivo|domingo\s+y\s+festivo/.test(t))
+    return dia==="domingo"||dia==="festivo";
+  if(/sabado\s+y\s+festivo|sabado\s*\/\s*festivo/.test(t))
+    return dia==="sabado"||dia==="festivo";
+  if(/l-v|lunes\s+a\s+viernes|laboral/.test(t)) return dia==="laboral";
+  if(/sabado/.test(t)) return dia==="sabado";
+  if(/domingo/.test(t)) return dia==="domingo";
+  if(/festivo/.test(t)) return dia==="festivo";
+  return false;
+}
+function horarioEtiquetadoCoincide(texto,fecha,min){
+  if(!texto) return null;
+  var normal=textoHorarioNormalizado(texto);
+  if(/fuera de horario|fuera de los horarios|resto de horario/.test(normal)) return false;
+  var segmentos=String(texto).split(/;/);
+  var vioRegla=false;
+  for(var i=0;i<segmentos.length;i++){
+    var aplica=segmentoAplicaDia(segmentos[i],fecha);
+    if(aplica===null) continue;
+    vioRegla=true;
+    if(!aplica) continue;
+    var rr=rangosHorario(segmentos[i]);
+    for(var j=0;j<rr.length;j++){
+      if(minutoEnRango(min,rr[j][0],rr[j][1])) return true;
+    }
+  }
+  return vioRegla?false:null;
 }
 function avisar(m,e){ var a=$("aviso"); a.textContent=m||""; a.className="aviso"+(e?" error":""); }
 function estado(m){ $("estado").textContent=m||""; }
@@ -1212,6 +1313,8 @@ var paradas=[];          /* [{lat,lon,etiqueta}] en el orden actual */
 var circuito=null;       /* {km,min,geometria,legs,legGeometrias,peajes} */
 var comparacion=null;    /* {kmOriginal,minOriginal} */
 var horaSalida="09:00";
+var selectorHoraAbierto=false;
+var horaPendiente="09:00";
 var mapa=null, capaRuta=null, capaPuntos=null, temporizador;
 
 function fechaElegida(){
@@ -1366,33 +1469,89 @@ function tarifaVigenteEnFecha(t,fecha){
 function elegirTarifaFilas(filas,fecha,min,routeId,sentido){
   filas=filas.filter(function(t){ return tarifaVigenteEnFecha(t,fecha); });
   if(!filas.length) return null;
-  var porTipo={},horarioEstimado=false;
-  filas.forEach(function(t){ porTipo[String(t.tariff_type||"").toUpperCase()]=t; });
-  var punta=false, elegida=null;
-  if(porTipo.TBFP||porTipo.TBP){
-    if(routeId==="route_americo_vespucio_oriente_avo_i"){
-      var dia=fecha.getDay();
-      punta=dia>=1&&dia<=5&&((min>=450&&min<570)||(min>=1050&&min<1170));
+
+  var porTipo={};
+  filas.forEach(function(t){
+    porTipo[String(t.tariff_type||"").toUpperCase()]=t;
+  });
+
+  var punta=false,elegida=null,horarioEstimado=false,horarioFuente="fijo";
+
+  ["TS","TBP","PUNTA"].some(function(tipoBuscado){
+    var fila=porTipo[tipoBuscado];
+    if(!fila) return false;
+    if(horarioEtiquetadoCoincide(fila.schedule_text,fecha,min)===true){
+      elegida=fila;
+      horarioFuente="oficial";
+      return true;
+    }
+    return false;
+  });
+
+  if(!elegida&&(porTipo.TBFP||porTipo.TBP||porTipo.TS)&&
+     routeId==="route_americo_vespucio_oriente_avo_i"){
+    var diaAvo=tipoDiaTarifario(fecha);
+    punta=diaAvo==="laboral"&&((min>=450&&min<570)||(min>=1050&&min<1170));
+    elegida=punta?(porTipo.TBP||porTipo.TS||porTipo.TBFP):(porTipo.TBFP||porTipo.TBP||porTipo.TS);
+    horarioFuente="oficial";
+  }
+
+  if(!elegida&&(porTipo.NORMAL||porTipo.PUNTA)){
+    if(routeId==="route_acceso_nororiente"){
+      punta=REGLAS.nororiente(fecha,min);
+      horarioFuente="oficial";
+    }else if(routeId==="route_ruta_68_santiago_valparaiso_vina"){
+      punta=REGLAS.r68(fecha,min,sentido);
+      horarioFuente="oficial";
+    }else if(routeId==="route_ruta_60_ch"){
+      punta=REGLAS.r60(fecha,min,sentido);
+      horarioFuente="oficial";
+    }else if(routeId==="route_ruta_78"){
+      punta=REGLAS.r78(fecha,min,sentido);
+      horarioFuente="oficial";
     }else{
       punta=esHoraPuntaGenerica(fecha,min);
       horarioEstimado=true;
+      horarioFuente="estimado";
     }
-    elegida=punta?(porTipo.TBP||porTipo.TBFP):(porTipo.TBFP||porTipo.TBP);
-  }else if(porTipo.NORMAL||porTipo.PUNTA){
-    if(routeId==="route_ruta_68_santiago_valparaiso_vina")
-      punta=REGLAS.r68(fecha,min,sentido);
-    else if(routeId==="route_ruta_60_ch")
-      punta=REGLAS.r60(fecha,min,sentido);
     elegida=punta?(porTipo.PUNTA||porTipo.NORMAL):(porTipo.NORMAL||porTipo.PUNTA);
-  }else{
+  }
+
+  if(!elegida&&(porTipo.TBFP||porTipo.TBP||porTipo.TS)){
+    var interpretable=filas.some(function(t){
+      var tt=String(t.tariff_type||"").toUpperCase();
+      return /TBP|TS/.test(tt)&&horarioEtiquetadoCoincide(t.schedule_text,fecha,min)!==null;
+    });
+    if(interpretable){
+      elegida=porTipo.TBFP||porTipo.TBP||porTipo.TS;
+      horarioFuente="oficial";
+    }else{
+      punta=esHoraPuntaGenerica(fecha,min);
+      horarioEstimado=true;
+      horarioFuente="estimado";
+      elegida=punta?(porTipo.TBP||porTipo.TS||porTipo.TBFP):(porTipo.TBFP||porTipo.TBP||porTipo.TS);
+    }
+  }
+
+  if(!elegida){
     elegida=porTipo["ÚNICA"]||porTipo.UNICA||porTipo["PÓRTICO"]||porTipo.PORTICO||
             porTipo.TAG_HABILITADO||porTipo.CON_TAG||porTipo.TRONCAL||porTipo.LATERAL||
             porTipo.TS||filas[0];
   }
   if(!elegida) return null;
-  return {monto:Number(elegida.amount_clp)||0,punta:punta,
-          tipo:elegida.tariff_type||"",fila:elegida,horarioEstimado:horarioEstimado};
+
+  var tipoElegido=String(elegida.tariff_type||"").toUpperCase();
+  punta=/TBP|TS|PUNTA/.test(tipoElegido);
+  return {
+    monto:Number(elegida.amount_clp)||0,
+    punta:punta,
+    tipo:elegida.tariff_type||"",
+    fila:elegida,
+    horarioEstimado:horarioEstimado,
+    horarioFuente:horarioFuente
+  };
 }
+
 function crearCobroPunto(p,tramo,cerca,geo,evaluacion){
   var r=indiceCatalogo.rutas[p.route_id]||{};
   var direccion=direccionOperacionalPunto(p);
@@ -1752,6 +1911,27 @@ function detectarPeajesCatalogo(geometrias){
 /* ============================================================
    Cálculo
    ============================================================ */
+function longitudGeometriaMetros(geo){
+  var total=0;
+  for(var i=1;i<(geo||[]).length;i++) total+=haversine(geo[i-1],geo[i]);
+  return total;
+}
+function minutoPasoPeaje(p,tramoIndex,salidaTramo){
+  if(!circuito) return salidaTramo;
+  var geo=circuito.legGeometrias[tramoIndex]||[];
+  var totalM=longitudGeometriaMetros(geo);
+  var duracion=Number(circuito.legs[tramoIndex])||0;
+  var progreso=null;
+  if(p&&p.esViajeAvo&&p.entrada&&isFinite(Number(p.entrada.progresoRutaM)))
+    progreso=Number(p.entrada.progresoRutaM);
+  else if(p&&isFinite(Number(p.progresoRutaM)))
+    progreso=Number(p.progresoRutaM);
+  if(progreso===null&&p&&isFinite(Number(p.posicion))&&geo.length>1)
+    progreso=(Number(p.posicion)/(geo.length-1))*totalM;
+  if(!(totalM>0)||progreso===null) return salidaTramo;
+  var fraccion=Math.max(0,Math.min(1,progreso/totalM));
+  return salidaTramo+duracion*fraccion;
+}
 function tramoPeajes(tramoIndex,minutos,sentido){
   var fecha=fechaElegida(),lineas=[],total=0,sinValor=0,avoAmbiguos=0;
   (circuito?circuito.peajes:[]).forEach(function(p){
@@ -1773,8 +1953,9 @@ function tramoPeajes(tramoIndex,minutos,sentido){
     }
 
     var filas=p.esViajeAvo?p.filasTarifa:filasTarifaPunto(p);
+    var minutoPaso=minutoPasoPeaje(p,tramoIndex,minutos);
     var ev=elegirTarifaFilas(
-      filas,fecha,minutos,p.route_id,sentido
+      filas,fecha,minutoPaso,p.route_id,sentido
     );
     if(ev){
       total+=ev.monto;
@@ -1792,7 +1973,9 @@ function tramoPeajes(tramoIndex,minutos,sentido){
         rutaNombre:p.ruta||"",tipoTarifa:ev.tipo||"Tarifa aplicada",
         direccion:p.direccion||"",esAvo:!!p.esViajeAvo,
         monto:ev.monto,verificado:true,manual:false,
+        horaPaso:reloj(minutoPaso),minutoPaso:minutoPaso,
         horarioEstimado:ev.horarioEstimado,
+        horarioFuente:ev.horarioFuente,
         avoValidado:!!p.avoValidado
       });
     }else{
@@ -1936,9 +2119,11 @@ function dibujarMapa(){
     }
 
     var filas=filasTarifaPunto(p);
+    var minutoPasoMapa=tramoActual
+      ? minutoPasoPeaje(p,p.tramo,tramoActual.salida)
+      : minutosDe(horaSalida);
     var ev=elegirTarifaFilas(
-      filas,fechaElegida(),
-      tramoActual?tramoActual.salida:minutosDe(horaSalida),
+      filas,fechaElegida(),minutoPasoMapa,
       p.route_id,tramoActual?tramoActual.sentido:"oriente"
     );
     var ic=L.divIcon({
@@ -1948,7 +2133,7 @@ function dibujarMapa(){
     });
     var det=p.ruta+
       (p.direccion?" · "+esc(p.direccion):"")+"<br>"+
-      (ev?(esc(ev.tipo)+" "+pesos(ev.monto)):
+      (ev?(esc(ev.tipo)+" "+pesos(ev.monto)+" · paso "+reloj(minutoPasoMapa)):
         "Tarifa ausente en el catálogo")+
       "<br>Detección "+esc(p.confianzaDeteccion||"sin clasificar")+
       " · "+Math.round(Number(p.distanciaRuta)||0)+" m"+
@@ -2003,6 +2188,17 @@ function dibujarMapa(){
 /* ============================================================
    Render
    ============================================================ */
+function confirmarSelectorHora(){
+  if(!selectorHoraAbierto) return;
+  var hh=$("hora24Horas"),mm=$("hora24Minutos");
+  if(hh&&mm) horaPendiente=hh.value+":"+mm.value;
+  if(!hora24Valida(horaPendiente)) horaPendiente=horaSalida;
+  horaSalida=horaPendiente;
+  selectorHoraAbierto=false;
+  render();
+  guardar();
+}
+
 function renderAtajos(){
   var c=$("atajos"); c.innerHTML="";
   ATAJOS.forEach(function(a){
@@ -2028,10 +2224,59 @@ function renderParadas(){
   liBase.className="parada base";
   liBase.innerHTML='<span class="orden">◇</span>'+
     '<span class="texto">Base<small>'+esc(base?base.etiqueta:"")+"</small></span>"+
-    '<span class="reloj"><input type="time" value="'+horaSalida+'" id="horaSalida" '+
-    'style="border:1px solid var(--z7);border-radius:2px;padding:4px 6px;'+
-    "font-family:var(--dato);font-size:12px\"><small>hora de salida</small></span>";
+    '<span class="reloj hora24-wrap" id="hora24Wrap">'+
+      '<button type="button" class="hora24-trigger" id="horaSalidaBtn" aria-expanded="false">'+esc(horaSalida)+'</button>'+
+      '<small>hora de salida · 24 h</small>'+
+      '<div class="hora24-panel" id="hora24Panel" hidden>'+
+        '<div class="hora24-titulo">Hora de salida</div>'+
+        '<div class="hora24-controles">'+
+          '<select id="hora24Horas" aria-label="Hora"></select>'+
+          '<span class="hora24-dos-puntos">:</span>'+
+          '<select id="hora24Minutos" aria-label="Minutos"></select>'+
+        '</div>'+
+        '<span class="hora24-ayuda">No se aplica hasta confirmar o hacer clic fuera.</span>'+
+        '<div class="hora24-acciones"><button type="button" id="hora24Cancelar">Cancelar</button>'+
+          '<button type="button" class="aplicar" id="hora24Aplicar">Confirmar</button></div>'+
+      '</div>'+
+    '</span>';
   ul.appendChild(liBase);
+
+  var hh=$("hora24Horas"),mm=$("hora24Minutos");
+  for(var h24=0;h24<24;h24++){
+    var oh=document.createElement("option");
+    oh.value=String(h24).padStart(2,"0"); oh.textContent=oh.value; hh.appendChild(oh);
+  }
+  for(var m24=0;m24<60;m24++){
+    var om=document.createElement("option");
+    om.value=String(m24).padStart(2,"0"); om.textContent=om.value; mm.appendChild(om);
+  }
+  function cargarHoraPendiente(){
+    horaPendiente=hora24Valida(horaSalida)?horaSalida:"09:00";
+    var partesHora=horaPendiente.split(":");
+    hh.value=partesHora[0]; mm.value=partesHora[1];
+  }
+  function abrirSelectorHora(){
+    cargarHoraPendiente();
+    selectorHoraAbierto=true;
+    $("hora24Panel").hidden=false;
+    $("horaSalidaBtn").setAttribute("aria-expanded","true");
+  }
+  $("horaSalidaBtn").addEventListener("click",function(e){
+    e.stopPropagation();
+    if(selectorHoraAbierto) confirmarSelectorHora();
+    else abrirSelectorHora();
+  });
+  [hh,mm].forEach(function(sel){
+    sel.addEventListener("change",function(){
+      horaPendiente=hh.value+":"+mm.value;
+    });
+  });
+  $("hora24Aplicar").addEventListener("click",function(){ confirmarSelectorHora(); });
+  $("hora24Cancelar").addEventListener("click",function(){
+    selectorHoraAbierto=false;
+    $("hora24Panel").hidden=true;
+    $("horaSalidaBtn").setAttribute("aria-expanded","false");
+  });
 
   paradas.forEach(function(p,i){
     var tipo=tipoParada(p),fila=ag&&ag.filas[i];
@@ -2083,10 +2328,6 @@ function renderParadas(){
       '<span class="reloj">'+reloj(ag.llegadaFinal)+"<small>fin del recorrido</small></span>";
     ul.appendChild(liDestino);
   }
-
-  $("horaSalida").addEventListener("input",function(){
-    horaSalida=this.value; render(); guardar();
-  });
 
   ul.querySelectorAll("[data-sube]").forEach(function(b){
     b.addEventListener("click",function(){
@@ -2234,6 +2475,7 @@ function renderTramo(titulo,d,color,minutos,etiquetaHora){
     var metadata=[];
     if(l.rutaNombre) metadata.push(l.rutaNombre);
     if(l.direccion) metadata.push(l.direccion);
+    if(l.horaPaso) metadata.push("paso estimado "+l.horaPaso);
     if(!metadata.length&&l.ruta) metadata.push(l.ruta);
 
     var derecha='<span class="valor-tarifa"><span class="valor">'+
@@ -2707,6 +2949,20 @@ $("btnGoogleMaps").addEventListener("click",function(){
   abrirEtapaGoogle(0);
 });
 
+document.addEventListener("pointerdown",function(e){
+  if(!selectorHoraAbierto) return;
+  var wrap=$("hora24Wrap");
+  if(wrap&&wrap.contains(e.target)) return;
+  confirmarSelectorHora();
+});
+document.addEventListener("keydown",function(e){
+  if(e.key!=="Escape"||!selectorHoraAbierto) return;
+  selectorHoraAbierto=false;
+  var panel=$("hora24Panel"),btn=$("horaSalidaBtn");
+  if(panel) panel.hidden=true;
+  if(btn) btn.setAttribute("aria-expanded","false");
+});
+
 document.querySelectorAll("[data-tipo-nuevo]").forEach(function(b){
   b.addEventListener("click",function(){
     tipoNuevaParada=b.getAttribute("data-tipo-nuevo");
@@ -2771,7 +3027,7 @@ CAMPOS.concat(["fecha"]).forEach(function(k){
   if(g){
     try{
       var cfg=JSON.parse(g);
-      if(cfg.horaSalida) horaSalida=cfg.horaSalida;
+      if(cfg.horaSalida&&hora24Valida(cfg.horaSalida)) horaSalida=cfg.horaSalida;
       if(cfg.modoFin) modoFin=modoFinValido(cfg.modoFin);
       if(cfg.destinoFinal&&isFinite(Number(cfg.destinoFinal.lat))&&
           isFinite(Number(cfg.destinoFinal.lon)))
