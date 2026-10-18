@@ -278,11 +278,10 @@
   .hora24-controles select{flex:1;min-width:0;border:1px solid var(--z7);border-radius:2px;background:#fff;
     padding:7px 5px;font:600 14px/1 var(--dato);color:var(--tinta)}
   .hora24-dos-puntos{font:700 15px/1 var(--dato);color:var(--z4)}
-  .hora24-acciones{display:flex;justify-content:flex-end;gap:6px;margin-top:10px}
-  .hora24-acciones button{border:1px solid var(--z7);background:var(--papel);padding:6px 8px;border-radius:2px;
-    font:600 10px/1 var(--dato);cursor:pointer}
-  .hora24-acciones .aplicar{background:var(--tinta);color:#fff;border-color:var(--tinta)}
-  .hora24-ayuda{display:block;margin-top:7px;font:10px/1.35 var(--dato);color:var(--z5);white-space:normal}
+  .hora24-acciones{display:grid;grid-template-columns:1fr auto;gap:6px;margin-top:10px}
+  .hora24-acciones button{border:1px solid var(--z7);background:var(--papel);padding:8px 9px;border-radius:2px;
+    font:600 10.5px/1 var(--dato);cursor:pointer}
+  .hora24-acciones .aplicar{background:var(--tinta);color:#fff;border-color:var(--tinta);min-width:118px}
   .parada .quitar{border:0;background:transparent;color:var(--z5);cursor:pointer;
     font-size:19px;line-height:1;padding:0 3px}
   .parada .quitar:hover{color:var(--perdida)}
@@ -654,6 +653,10 @@ var REGLAS={
 
 /* ============================================================
    Utilidades
+var HORARIOS_PORTICOS_2026={"route_autopista_central|PA3|Sur - Norte":{"laboral":{"TS":[[420,450]],"TBP":[[390,420],[450,480]]},"domingo":{"TBP":[[1080,1200]]}},"route_autopista_central|PA5|Sur - Norte":{"laboral":{"TS":[[420,480]],"TBP":[[390,420],[480,570]]},"domingo":{"TBP":[[1080,1200]]}},"route_autopista_central|PA7|Sur - Norte":{"laboral":{"TBP":[[450,570]]},"domingo":{"TBP":[[1110,1230]]}},"route_autopista_central|PA30|Sur - Norte":{"laboral":{"TBP":[[450,570]]},"sabado":{"TBP":[[450,570]]},"festivo":{"TBP":[[450,570]]},"domingo":{"TBP":[[1110,1230]]}},"route_autopista_central|PA10|Sur - Norte":{"laboral":{"TBP":[[450,570]]},"sabado":{"TBP":[[450,570]]},"festivo":{"TBP":[[450,570]]},"domingo":{"TBP":[[1110,1230]]}},"route_autopista_central|PA31|Sur - Norte":{"laboral":{"TS":[[510,540]],"TBP":[[390,510],[540,840],[1020,1140]]},"sabado":{"TBP":[[600,780]]},"festivo":{"TBP":[[600,780]]},"domingo":{"TBP":[[1110,1230]]}},"route_autopista_central|PA13|Sur - Norte":{"laboral":{"TS":[[510,540]],"TBP":[[390,510],[540,840],[1020,1140]]},"sabado":{"TBP":[[600,780]]},"festivo":{"TBP":[[600,780]]},"domingo":{"TBP":[[1110,1230]]}},"route_autopista_central|PA16|Sur - Norte":{"laboral":{"TBP":[[450,570]]}},"route_autopista_central|PA17|Sur - Norte":{"laboral":{"TBP":[[420,600],[630,900],[990,1170]]}},"route_autopista_central|PA18|Norte - Sur":{"laboral":{"TS":[[1050,1080]],"TBP":[[420,510],[570,600]]}},"route_autopista_central|PA15|Norte - Sur":{"laboral":{"TBP":[[450,480],[510,540],[1110,1230]]}},"route_autopista_central|PA14|Norte - Sur":{"laboral":{"TS":[[600,630],[660,690],[930,960],[1170,1200]],"TBP":[[420,510],[540,570],[900,930],[960,990],[1110,1170],[1200,1230]]},"sabado":{"TBP":[[660,900]]},"festivo":{"TBP":[[660,900]]}},"route_autopista_central|PA12|Norte - Sur":{"laboral":{"TS":[[600,630],[660,690],[930,960],[1170,1200]],"TBP":[[420,510],[540,570],[900,930],[960,990],[1110,1170],[1200,1230]]},"sabado":{"TBP":[[660,900]]},"festivo":{"TBP":[[660,900]]}},"route_autopista_central|PA11|Norte - Sur":{"sabado":{"TBP":[[660,900]]},"festivo":{"TBP":[[660,900]]}},"route_autopista_central|PA9|Norte - Sur":{"laboral":{"TBP":[[1080,1230]]},"sabado":{"TBP":[[660,900]]},"festivo":{"TBP":[[660,900]]}},"route_autopista_central|PA8|Norte - Sur":{"laboral":{"TBP":[[1080,1230]]}},"route_autopista_central|PA32|Norte - Sur":{"laboral":{"TS":[[1050,1170]],"TBP":[[1110,1230]]}},"route_autopista_central|PA6|Norte - Sur":{"laboral":{"TS":[[1050,1170]],"TBP":[[600,630],[1170,1230]]}},"route_autopista_central|PA37|Norte - Sur":{"laboral":{"TBP":[[600,630],[1170,1230]]}},"route_autopista_central|PA23|Sur - Norte":{"laboral":{"TBP":[[420,600]]}},"route_autopista_central|PA25|Sur - Norte":{"laboral":{"TBP":[[420,570],[870,900],[1140,1170]]}},"route_autopista_central|PA28|Sur - Norte":{"laboral":{"TS":[[450,510]],"TBP":[[420,450],[510,570],[600,630],[1080,1140]]}},"route_autopista_central|PA29|Norte - Sur":{"laboral":{"TBP":[[1020,1230]]}},"route_autopista_central|PA26|Norte - Sur":{"laboral":{"TBP":[[1110,1230]]}},"route_autopista_central|PA24|Norte - Sur":{"laboral":{"TS":[[1110,1140]],"TBP":[[1080,1110],[1140,1230]]}},"route_autopista_vespucio_norte|P15|Oriente - Poniente":{"laboral":{"TBP":[[1050,1110],[1140,1320]],"TS":[[1110,1140]]},"sabado":{"TBP":[[780,900],[1200,1320]]},"festivo":{"TBP":[[780,900],[1200,1320]]}},"route_autopista_vespucio_norte|P13|Oriente - Poniente":{"laboral":{"TBP":[[1050,1110],[1140,1320]],"TS":[[1110,1140]]},"sabado":{"TBP":[[780,900],[1200,1320]]},"festivo":{"TBP":[[780,900],[1200,1320]]}},"route_autopista_vespucio_norte|P11|Oriente - Poniente":{"laboral":{"TBP":[[450,540],[1050,1140]]},"sabado":{"TBP":[[780,900],[1200,1320]]},"festivo":{"TBP":[[780,900],[1200,1320]]},"domingo":{"TBP":[[1260,1380]]}},"route_autopista_vespucio_norte|P8|Oriente - Poniente":{"laboral":{"TBP":[[450,570]]},"sabado":{"TBP":[[780,900],[1200,1320]]},"festivo":{"TBP":[[780,900],[1200,1320]]},"domingo":{"TBP":[[1260,1380]]}},"route_autopista_vespucio_norte|P6|Oriente - Poniente":{"laboral":{"TBP":[[450,570],[1050,1110]]}},"route_autopista_vespucio_norte|P4|Oriente - Poniente":{"laboral":{"TBP":[[930,990],[1170,1200]],"TS":[[990,1170]]},"sabado":{"TBP":[[660,840],[1140,1320]]},"festivo":{"TBP":[[660,840],[1140,1320]]}},"route_autopista_vespucio_norte|P2|Oriente - Poniente":{"laboral":{"TBP":[[930,1050],[1170,1200]],"TS":[[1050,1170]]}},"route_autopista_vespucio_norte|P17|Oriente - Poniente":{"laboral":{"TBP":[[930,1050],[1170,1200]],"TS":[[1050,1170]]}},"route_autopista_vespucio_norte|P1|Poniente - Oriente":{"laboral":{"TBP":[[390,420],[600,750]],"TS":[[420,600]]}},"route_autopista_vespucio_norte|P16|Poniente - Oriente":{"laboral":{"TBP":[[390,420],[600,750]],"TS":[[420,600]]}},"route_autopista_vespucio_norte|P3|Poniente - Oriente":{"laboral":{"TBP":[[450,570]]},"sabado":{"TBP":[[1080,1260]]},"festivo":{"TBP":[[1080,1260]]},"domingo":{"TBP":[[1140,1320]]}},"route_autopista_vespucio_norte|P5|Poniente - Oriente":{"laboral":{"TBP":[[450,480]]},"sabado":{"TBP":[[1080,1260]]},"festivo":{"TBP":[[1080,1260]]},"domingo":{"TBP":[[1140,1320]]}},"route_autopista_vespucio_norte|P7|Poniente - Oriente":{"laboral":{"TBP":[[450,540],[630,690],[1050,1200]]},"sabado":{"TBP":[[780,900],[1080,1260]]},"festivo":{"TBP":[[780,900],[1080,1260]]},"domingo":{"TBP":[[1140,1320]]}},"route_autopista_vespucio_norte|P9|Poniente - Oriente":{"laboral":{"TBP":[[450,540],[630,690],[1050,1200]]},"sabado":{"TBP":[[780,900],[1080,1260]]},"festivo":{"TBP":[[780,900],[1080,1260]]},"domingo":{"TBP":[[1140,1320]]}},"route_autopista_vespucio_norte|P10|Poniente - Oriente":{"laboral":{"TBP":[[450,480],[540,570],[1050,1200]],"TS":[[480,540]]},"sabado":{"TBP":[[1080,1260]]},"festivo":{"TBP":[[1080,1260]]},"domingo":{"TBP":[[1140,1320]]}},"route_autopista_vespucio_norte|P12|Poniente - Oriente":{"laboral":{"TBP":[[450,570]]}},"route_autopista_vespucio_norte|P14|Poniente - Oriente":{"laboral":{"TBP":[[450,570]]}},"route_costanera_norte|P0|Oriente - Poniente":{"laboral":{"TBP":[[420,450],[510,600],[720,780],[840,900],[1050,1170]],"TS":[[450,510],[780,840]]}},"route_costanera_norte|P1|Oriente - Poniente":{"laboral":{"TBP":[[420,450],[510,600],[720,780],[840,900],[1050,1170]],"TS":[[450,510],[780,840]]}},"route_costanera_norte|P2.1|Oriente - Poniente":{"laboral":{"TBP":[[420,450],[510,600],[720,780],[840,900],[1050,1170]],"TS":[[450,510],[780,840]]}},"route_costanera_norte|P2.2|Oriente - Poniente":{"laboral":{"TBP":[[420,450],[510,600],[720,780],[840,900],[1050,1170]],"TS":[[450,510],[780,840]]}},"route_costanera_norte|SB|Oriente - Poniente":{"laboral":{"TBP":[[420,450],[510,600],[660,780],[840,1020],[1170,1260]],"TS":[[450,510],[780,840],[1020,1170]]},"sabado":{"TBP":[[690,900],[990,1020],[1110,1170]]}},"route_costanera_norte|P3|Oriente - Poniente":{"laboral":{"TBP":[[420,450],[510,600],[660,780],[840,1020],[1170,1260]],"TS":[[450,510],[780,840],[1020,1170]]},"sabado":{"TBP":[[690,900],[990,1020],[1110,1170]]}},"route_costanera_norte|EP|Oriente - Poniente":{"laboral":{"TBP":[[420,450],[510,600],[660,780],[840,1020],[1170,1260]],"TS":[[450,510],[780,840],[1020,1170]]},"sabado":{"TBP":[[690,900],[990,1020],[1110,1170]]}},"route_costanera_norte|EV|Oriente - Poniente":{"laboral":{"TBP":[[420,450],[510,600],[660,780],[840,1020],[1170,1260]],"TS":[[450,510],[780,840],[1020,1170]]},"sabado":{"TBP":[[690,900],[990,1020],[1110,1170]]}},"route_costanera_norte|P5|Oriente - Poniente":{"laboral":{"TBP":[[720,900],[1080,1260]]}},"route_costanera_norte|P6.1|Oriente - Poniente":{"laboral":{"TBP":[[720,900],[1080,1260]]}},"route_costanera_norte|P6.2|Oriente - Poniente":{"laboral":{"TBP":[[720,900],[1080,1260]]}},"route_costanera_norte|P9|Oriente - Poniente":{"laboral":{"TBP":[[720,900],[1080,1260]]},"sabado":{"TBP":[[660,690]],"TS":[[690,900]]}},"route_costanera_norte|P7|Oriente - Poniente":{"laboral":{"TBP":[[420,450],[510,600],[720,780],[840,900],[1050,1140]],"TS":[[450,510],[780,840]]}},"route_costanera_norte|P8.0|Oriente - Poniente":{"laboral":{"TBP":[[420,450],[510,600],[720,780],[840,900],[1050,1140]],"TS":[[450,510],[780,840]]}},"route_costanera_norte|P8.1|Oriente - Poniente":{"laboral":{"TBP":[[420,450],[510,600],[720,780],[840,900],[1050,1140]],"TS":[[450,510],[780,840]]}},"route_costanera_norte|P8.2|Poniente - Oriente":{"laboral":{"TBP":[[420,570],[720,780],[840,900],[930,960],[990,1080],[1170,1260]],"TS":[[780,840],[1080,1170]]}},"route_costanera_norte|P8.1|Poniente - Oriente":{"laboral":{"TBP":[[420,570],[720,780],[840,900],[930,960],[990,1080],[1170,1260]],"TS":[[780,840],[1080,1170]]}},"route_costanera_norte|P8.0|Poniente - Oriente":{"laboral":{"TBP":[[420,570],[720,780],[840,900],[930,960],[990,1080],[1170,1260]],"TS":[[780,840],[1080,1170]]}},"route_costanera_norte|P7|Poniente - Oriente":{"laboral":{"TBP":[[420,570],[720,780],[840,900],[930,960],[990,1080],[1170,1260]],"TS":[[780,840],[1080,1170]]}},"route_costanera_norte|P9|Poniente - Oriente":{"laboral":{"TBP":[[420,600],[720,900]]}},"route_costanera_norte|P6.2|Poniente - Oriente":{"laboral":{"TBP":[[420,450],[570,600],[720,900],[1080,1110]],"TS":[[450,570]]}},"route_costanera_norte|P6.1|Poniente - Oriente":{"laboral":{"TBP":[[420,450],[570,600],[720,900],[1080,1110]],"TS":[[450,570]]}},"route_costanera_norte|P5|Poniente - Oriente":{"laboral":{"TBP":[[420,450],[570,600],[720,900],[1080,1110]],"TS":[[450,570]]}},"route_costanera_norte|P4|Poniente - Oriente":{"laboral":{"TBP":[[840,990],[1170,1260]],"TS":[[420,840],[990,1170]]},"sabado":{"TBP":[[510,930],[1110,1140]]}},"route_costanera_norte|P3|Poniente - Oriente":{"laboral":{"TBP":[[840,990],[1170,1260]],"TS":[[420,840],[990,1170]]},"sabado":{"TBP":[[510,930],[1110,1140]]}},"route_costanera_norte|P2.2|Poniente - Oriente":{"laboral":{"TBP":[[720,780],[840,900],[1080,1110],[1170,1260]],"TS":[[780,840],[1110,1170]]}},"route_costanera_norte|P2.1|Poniente - Oriente":{"laboral":{"TBP":[[720,780],[840,900],[1080,1110],[1170,1260]],"TS":[[780,840],[1110,1170]]}},"route_costanera_norte|P1|Poniente - Oriente":{"laboral":{"TBP":[[720,780],[840,900],[1080,1110],[1170,1260]],"TS":[[780,840],[1110,1170]]}},"route_costanera_norte|P0|Poniente - Oriente":{"laboral":{"TBP":[[720,780],[840,900],[1080,1110],[1170,1260]],"TS":[[780,840],[1110,1170]]}}};
+
+/* ============================================================
+   Utilidades
    ============================================================ */
 function $(id){ return document.getElementById(id); }
 function num(id){ var e=$(id); if(!e) return 0; var v=parseFloat(e.value); return isFinite(v)?v:0; }
@@ -704,6 +707,30 @@ function minutoEnRango(min,a,b){
   if(a===b) return true;
   if(b===0&&a>0) b=1440;
   return a<b ? min>=a&&min<b : (min>=a||min<b);
+}
+
+function claveHorarioPortico(filas){
+  var f=(filas||[]).find(function(x){
+    return x&&x.route_id&&x.point_code&&x.direction;
+  });
+  if(!f) return null;
+  return f.route_id+"|"+String(f.point_code).replace(/^PA\s+/,"PA")+"|"+String(f.direction).trim();
+}
+function tipoTarifaPorHorarioPortico(filas,fecha,min){
+  var clave=claveHorarioPortico(filas);
+  if(!clave) return null;
+  var regla=HORARIOS_PORTICOS_2026[clave];
+  if(!regla) return null;
+  var dia=tipoDiaTarifario(fecha);
+  var bandas=regla[dia]||{};
+  function coincide(tipo){
+    return (bandas[tipo]||[]).some(function(r){
+      return minutoEnRango(min,r[0],r[1]);
+    });
+  }
+  if(coincide("TS")) return "TS";
+  if(coincide("TBP")) return "TBP";
+  return "TBFP";
 }
 function segmentoAplicaDia(segmento,fecha){
   var t=textoHorarioNormalizado(segmento),dia=tipoDiaTarifario(fecha);
@@ -1477,7 +1504,13 @@ function elegirTarifaFilas(filas,fecha,min,routeId,sentido){
 
   var punta=false,elegida=null,horarioEstimado=false,horarioFuente="fijo";
 
-  ["TS","TBP","PUNTA"].some(function(tipoBuscado){
+  var tipoExacto=tipoTarifaPorHorarioPortico(filas,fecha,min);
+  if(tipoExacto&&porTipo[tipoExacto]){
+    elegida=porTipo[tipoExacto];
+    horarioFuente="oficial_portico";
+  }
+
+  if(!elegida) ["TS","TBP","PUNTA"].some(function(tipoBuscado){
     var fila=porTipo[tipoBuscado];
     if(!fila) return false;
     if(horarioEtiquetadoCoincide(fila.schedule_text,fecha,min)===true){
@@ -1976,6 +2009,7 @@ function tramoPeajes(tramoIndex,minutos,sentido){
         horaPaso:reloj(minutoPaso),minutoPaso:minutoPaso,
         horarioEstimado:ev.horarioEstimado,
         horarioFuente:ev.horarioFuente,
+        reglaHorariaOficial:ev.horarioFuente==="oficial_portico"||ev.horarioFuente==="oficial",
         avoValidado:!!p.avoValidado
       });
     }else{
@@ -2234,9 +2268,9 @@ function renderParadas(){
           '<span class="hora24-dos-puntos">:</span>'+
           '<select id="hora24Minutos" aria-label="Minutos"></select>'+
         '</div>'+
-        '<span class="hora24-ayuda">No se aplica hasta confirmar o hacer clic fuera.</span>'+
-        '<div class="hora24-acciones"><button type="button" id="hora24Cancelar">Cancelar</button>'+
-          '<button type="button" class="aplicar" id="hora24Aplicar">Confirmar</button></div>'+
+        '<div class="hora24-acciones">'+
+          '<button type="button" class="aplicar" id="hora24Aplicar">Confirmar</button>'+
+          '<button type="button" id="hora24Cancelar">Cancelar</button></div>'+
       '</div>'+
     '</span>';
   ul.appendChild(liBase);
@@ -2475,7 +2509,8 @@ function renderTramo(titulo,d,color,minutos,etiquetaHora){
     var metadata=[];
     if(l.rutaNombre) metadata.push(l.rutaNombre);
     if(l.direccion) metadata.push(l.direccion);
-    if(l.horaPaso) metadata.push("paso estimado "+l.horaPaso);
+    if(l.horaPaso) metadata.push("paso estimado "+l.horaPaso+
+      (l.reglaHorariaOficial?" · horario oficial":""));
     if(!metadata.length&&l.ruta) metadata.push(l.ruta);
 
     var derecha='<span class="valor-tarifa"><span class="valor">'+
