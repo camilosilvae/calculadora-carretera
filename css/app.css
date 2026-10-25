@@ -340,6 +340,10 @@
   .btn.suave{background:#fff;color:var(--z0);border:1px solid var(--z0);padding:11px 18px}
   .btn.suave:hover{background:var(--z8)}
   .btn.suave:disabled{border-color:var(--z7);color:var(--z5);background:#fff}
+  .actualizar-calculo{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    margin-top:16px;padding-top:16px;border-top:1px solid var(--z7)}
+  .actualizar-calculo .btn{padding:12px 20px}
+  .actualizar-calculo span{flex:1;min-width:220px;font:11px/1.45 var(--dato);color:var(--z5)}
   .catalogo-carga{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
   .catalogo-carga .btn{padding:10px 15px}
   .catalogo-estado{font-family:var(--dato);font-size:11.5px;color:var(--z5);line-height:1.55}
