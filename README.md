@@ -1,10 +1,32 @@
 # Calculadora de recorridos y peajes — Chile
 
-Aplicación web estática para planificar recorridos multiparada, estimar costos de traslado y calcular peajes/pórticos TAG con datos tarifarios 2026.
+Herramienta web para planificar jornadas de fotografía inmobiliaria en Chile. Permite ordenar múltiples destinos, estimar tiempos y kilómetros, calcular costos de traslado y peajes/TAG, y comparar el resultado económico de una salida.
 
-## Arquitectura
+**Aplicación:** https://camilosilvae.github.io/calculadora-carretera/
 
-La aplicación sigue siendo 100 % compatible con GitHub Pages y no necesita backend, pero ya no está concentrada en un único HTML.
+## Qué resuelve
+
+- Planificación de rutas con varias propiedades y paradas técnicas.
+- Tres formas de terminar la jornada: volver a la base, terminar en la última parada o fijar otro destino final.
+- Estimación de combustible, desgaste del vehículo, tiempo de trabajo y margen por propiedad.
+- Detección de peajes y pórticos a partir de la geometría real de cada tramo.
+- Aplicación de tarifas horarias 2026 cuando existe una regla verificable.
+- Tratamiento específico de AVO I mediante pares de entrada/salida y su matriz tarifaria.
+- Envío del recorrido resultante a Google Maps.
+
+Cuando un cruce o tarifa no se puede determinar con suficiente seguridad, la aplicación lo muestra como pendiente y no lo suma al presupuesto.
+
+## Datos y cálculo de peajes
+
+El cálculo separa tres fuentes de información:
+
+- `data/catalogo-geografico-2026.json`: carreteras, pórticos y coordenadas.
+- `data/tarifas-2026.json`: tarifas TAG, grupos tarifarios y modelos de cobro.
+- `data/horarios-porticos-2026.json`: reglas horarias normalizadas por pórtico y sentido.
+
+Esta separación permite actualizar tarifas u horarios sin modificar la lógica de ruteo.
+
+## Estructura
 
 ```text
 .
@@ -24,65 +46,44 @@ La aplicación sigue siendo 100 % compatible con GitHub Pages y no necesita back
 └── .github/workflows/validate.yml
 ```
 
-### Flujo de carga
+`bootstrap.js` carga los datos versionados y luego inicia `app.js`. La aplicación es estática y no requiere backend.
 
-1. `index.html` contiene solamente la estructura de la interfaz.
-2. `css/app.css` contiene todos los estilos propios.
-3. `js/bootstrap.js` carga los JSON 2026.
-4. Después inicia `js/app.js`, que contiene el coordinador principal de rutas, costos, mapa, peajes y UI.
-5. GitHub Actions valida la sintaxis JavaScript y casos tarifarios críticos en cada cambio de `main`.
+## Desarrollo local
 
-## Datos
-
-- `catalogo-geografico-2026.json`: carreteras, pórticos y coordenadas.
-- `tarifas-2026.json`: tarifas TAG y modelos de cobro.
-- `horarios-porticos-2026.json`: reglas horarias normalizadas por carretera, pórtico y sentido.
-
-Separar los datos del código permite corregir tarifas u horarios sin reescribir el HTML completo.
-
-## Pruebas
-
-Con Node.js instalado:
-
-```bash
-npm test
-```
-
-Para validar además la sintaxis de los archivos JavaScript:
-
-```bash
-npm run check
-```
-
-Entre los casos protegidos hay pruebas para PA26 de Autopista Central, P10 de Vespucio Norte y P0 de Costanera Norte.
-
-## Ejecutar localmente
-
-Como los datos ahora se cargan mediante `fetch()`, conviene servir la carpeta por HTTP en vez de abrir `index.html` con `file://`.
+Los JSON se cargan con `fetch()`, por lo que conviene servir el repositorio por HTTP:
 
 ```bash
 python3 -m http.server 8000
 ```
 
-Luego abre `http://localhost:8000`.
+Después abre `http://localhost:8000`.
 
-## GitHub Pages
+## Validación
 
-La publicación continúa desde la rama `main` y la carpeta raíz. `index.html` sigue siendo la entrada principal.
+Con Node.js instalado:
+
+```bash
+npm test
+npm run check
+```
+
+La validación automática de GitHub Actions comprueba la sintaxis JavaScript y casos tarifarios críticos antes de integrar cambios.
 
 ## Servicios externos
 
-La aplicación usa servicios públicos desde el navegador:
+La aplicación utiliza desde el navegador:
 
-- OpenStreetMap / Leaflet para el mapa.
-- Nominatim para búsqueda/geocodificación.
-- OSRM para cálculo de rutas.
-- Google Maps para abrir el recorrido generado.
+- Leaflet y OpenStreetMap para visualización del mapa.
+- Nominatim para geocodificación.
+- OSRM para ruteo y optimización del orden.
+- Google Maps para abrir el recorrido planificado.
 
-## Tarifas
+## Alcance y mantenimiento
 
-Los datos incluidos corresponden al paquete 2026 del proyecto. Las tarifas, horarios y reglas deben revisarse cuando MOP o las concesionarias publiquen modificaciones o al cambiar de año.
+Los datos incluidos corresponden al tarifario 2026. Deben revisarse cuando el MOP o las concesionarias publiquen cambios y al comenzar un nuevo año tarifario.
+
+Los servicios públicos de geocodificación y ruteo pueden tener límites de uso o disponibilidad. Para un despliegue de alto tráfico convendría sustituirlos por servicios con capacidad y condiciones acordes al volumen esperado.
 
 ## Privacidad
 
-La base y los destinos del usuario se guardan localmente en el navegador. El repositorio no contiene una dirección personal preconfigurada ni claves privadas.
+La base de salida, los destinos y los ajustes del usuario se guardan localmente en el navegador. El repositorio no contiene una dirección personal preconfigurada ni claves privadas.
