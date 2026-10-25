@@ -1,0 +1,10 @@
+{
+  "name": "calculadora-carretera",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Calculadora web de recorridos, peajes y costos para Chile",
+  "scripts": {
+    "test": "node tests/horarios.test.mjs",
+    "check": "node --check js/bootstrap.js && node --check js/app.js && npm test"
+  }
+}

@@ -1,40 +1,88 @@
 # Calculadora de recorridos y peajes — Chile
 
-Aplicación web estática para planificar recorridos multiparada, estimar costos de traslado y calcular peajes/pórticos TAG con datos tarifarios 2026 incorporados.
+Aplicación web estática para planificar recorridos multiparada, estimar costos de traslado y calcular peajes/pórticos TAG con datos tarifarios 2026.
 
-## Funciones principales
+## Arquitectura
 
-- Agrega propiedades y paradas técnicas.
-- Permite volver a la base, terminar en la última parada o fijar otro destino final.
-- Calcula ruta, distancia y tiempos estimados.
-- Estima combustible, desgaste, tiempo de trabajo y rentabilidad de la jornada.
-- Detecta pórticos/peajes a partir del catálogo geográfico incorporado.
-- Aplica tarifas TAG 2026 incluidas en la aplicación.
-- Trata AVO I mediante su modelo de entrada/salida y matriz tarifaria.
-- Permite abrir el recorrido resultante en Google Maps.
-- Guarda configuración y datos de uso localmente en el navegador mediante `localStorage`.
+La aplicación sigue siendo 100 % compatible con GitHub Pages y no necesita backend, pero ya no está concentrada en un único HTML.
 
-## Publicación
+```text
+.
+├── index.html
+├── css/
+│   └── app.css
+├── js/
+│   ├── bootstrap.js
+│   └── app.js
+├── data/
+│   ├── catalogo-geografico-2026.json
+│   ├── tarifas-2026.json
+│   └── horarios-porticos-2026.json
+├── tests/
+│   └── horarios.test.mjs
+├── package.json
+└── .github/workflows/validate.yml
+```
 
-La aplicación debe quedar publicada como un `index.html` directo. El repositorio incluye el flujo manual **Reconstruir aplicación**, que recompone el HTML original a partir del respaldo en `payload/` y lo confirma en la rama `main`.
+### Flujo de carga
 
-Para reconstruirlo desde GitHub:
+1. `index.html` contiene solamente la estructura de la interfaz.
+2. `css/app.css` contiene todos los estilos propios.
+3. `js/bootstrap.js` carga los JSON 2026.
+4. Después inicia `js/app.js`, que contiene el coordinador principal de rutas, costos, mapa, peajes y UI.
+5. GitHub Actions valida la sintaxis JavaScript y casos tarifarios críticos en cada cambio de `main`.
 
-1. Abre la pestaña **Actions**.
-2. Selecciona **Reconstruir aplicación**.
-3. Pulsa **Run workflow** y vuelve a pulsar **Run workflow** para confirmar.
-4. Espera a que el flujo termine con marca verde.
+## Datos
 
-GitHub Pages debe estar configurado con **Deploy from a branch → main → /(root)**.
+- `catalogo-geografico-2026.json`: carreteras, pórticos y coordenadas.
+- `tarifas-2026.json`: tarifas TAG y modelos de cobro.
+- `horarios-porticos-2026.json`: reglas horarias normalizadas por carretera, pórtico y sentido.
 
-## Servicios externos utilizados
+Separar los datos del código permite corregir tarifas u horarios sin reescribir el HTML completo.
 
-La aplicación utiliza servicios públicos externos desde el navegador, entre ellos OpenStreetMap/Leaflet, Nominatim, OSRM, Google Maps y CDN públicos para librerías y tipografías.
+## Pruebas
 
-## Datos tarifarios
+Con Node.js instalado:
 
-El HTML original contiene el catálogo geográfico y el paquete tarifario 2026 incorporados. Las tarifas y reglas deben revisarse cuando cambie el año o cuando MOP/concesionarias publiquen modificaciones.
+```bash
+npm test
+```
+
+Para validar además la sintaxis de los archivos JavaScript:
+
+```bash
+npm run check
+```
+
+Entre los casos protegidos hay pruebas para PA26 de Autopista Central, P10 de Vespucio Norte y P0 de Costanera Norte.
+
+## Ejecutar localmente
+
+Como los datos ahora se cargan mediante `fetch()`, conviene servir la carpeta por HTTP en vez de abrir `index.html` con `file://`.
+
+```bash
+python3 -m http.server 8000
+```
+
+Luego abre `http://localhost:8000`.
+
+## GitHub Pages
+
+La publicación continúa desde la rama `main` y la carpeta raíz. `index.html` sigue siendo la entrada principal.
+
+## Servicios externos
+
+La aplicación usa servicios públicos desde el navegador:
+
+- OpenStreetMap / Leaflet para el mapa.
+- Nominatim para búsqueda/geocodificación.
+- OSRM para cálculo de rutas.
+- Google Maps para abrir el recorrido generado.
+
+## Tarifas
+
+Los datos incluidos corresponden al paquete 2026 del proyecto. Las tarifas, horarios y reglas deben revisarse cuando MOP o las concesionarias publiquen modificaciones o al cambiar de año.
 
 ## Privacidad
 
-La base y destinos introducidos por el usuario se guardan localmente en el navegador mediante `localStorage`. El repositorio no incluye una dirección de base personal preconfigurada ni claves privadas.
+La base y los destinos del usuario se guardan localmente en el navegador. El repositorio no contiene una dirección personal preconfigurada ni claves privadas.
