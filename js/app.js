@@ -2494,6 +2494,13 @@ CAMPOS.forEach(function(k){
   $(k).addEventListener("input",function(){ render(); guardar(); });
 });
 
+$("btnActualizarCalculo").addEventListener("click",function(){
+  render();
+  guardar();
+  var mensaje=$("estadoActualizar");
+  if(mensaje) mensaje.textContent="Cálculo actualizado con los valores actuales.";
+});
+
 /* --- Arranque --- */
 (async function(){
   var h=new Date();
