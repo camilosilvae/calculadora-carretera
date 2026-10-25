@@ -12,7 +12,7 @@ function esTemporadaAlta(f){
   var m=f.getMonth()+1, d=f.getDate();
   return (m===12&&d>=20)||m===1||m===2||(m===3&&d<=10);
 }
-var REGLAS={
+var REGLAS_PUNTA_RUTA={
   ninguna:function(){ return false; },
   r68:function(f,min,s){
     var dia=f.getDay(), alta=esTemporadaAlta(f);
@@ -46,9 +46,7 @@ var REGLAS={
 
 var HORARIOS_PORTICOS_2026=window.HORARIOS_PORTICOS_2026||{};
 
-/* ============================================================
-   Utilidades
-   ============================================================ */
+/* --- Utilidades --- */
 function $(id){ return document.getElementById(id); }
 function num(id){ var e=$(id); if(!e) return 0; var v=parseFloat(e.value); return isFinite(v)?v:0; }
 function pesos(n){ return (n<0?"−":"")+"$"+Math.round(Math.abs(n)).toLocaleString("es-CL"); }
@@ -419,9 +417,7 @@ async function quitarCatalogo(){
   if(circuito) recalcular(false);
 }
 
-/* ============================================================
-   Coordenadas
-   ============================================================ */
+/* --- Coordenadas --- */
 /* Normaliza lo que pega la gente: comillas curvas del teclado del celular,
    primas tipográficas, espacios duros, símbolos de grado alternativos. */
 function normalizarTexto(t){
@@ -526,10 +522,8 @@ function validar(a,b,origen){
           leido:lat.toFixed(4)+", "+lon.toFixed(4)};
 }
 
-/* ============================================================
-   Servicios
-   ============================================================ */
-var CAB={"Accept":"application/json"};
+/* --- Servicios --- */
+var CABECERAS_JSON={"Accept":"application/json"};
 
 /* Traduce fallas de red a algo accionable. "Failed to fetch" es lo que
    devuelve el navegador cuando no logra salir: sin conexión, o corriendo
@@ -546,14 +540,14 @@ function mensajeDeError(err){
 
 async function geocodificar(t){
   var r=await fetch("https://nominatim.openstreetmap.org/search?"+new URLSearchParams({
-    q:t, format:"json", countrycodes:"cl", limit:"5", addressdetails:"1"}),{headers:CAB});
+    q:t, format:"json", countrycodes:"cl", limit:"5", addressdetails:"1"}),{headers:CABECERAS_JSON});
   if(!r.ok) throw new Error("El buscador de direcciones no respondió.");
   return await r.json();
 }
 async function nombreDeCoordenadas(lat,lon){
   try{
     var r=await fetch("https://nominatim.openstreetmap.org/reverse?"+new URLSearchParams({
-      lat:String(lat),lon:String(lon),format:"json",zoom:"18"}),{headers:CAB});
+      lat:String(lat),lon:String(lon),format:"json",zoom:"18"}),{headers:CABECERAS_JSON});
     if(!r.ok) return null;
     var d=await r.json();
     return d&&d.display_name?d.display_name:null;
@@ -569,7 +563,7 @@ async function optimizar(puntos,modo){
     ? "?source=first&roundtrip=true&overview=full&geometries=geojson&steps=true"
     : "?source=first&destination=last&roundtrip=false&overview=full&geometries=geojson&steps=true";
   var url="https://router.project-osrm.org/trip/v1/driving/"+cadena(puntos)+opciones;
-  var r=await fetch(url,{headers:CAB});
+  var r=await fetch(url,{headers:CABECERAS_JSON});
   if(!r.ok) throw new Error("El optimizador de rutas no respondió.");
   var j=await r.json();
   if(j.code!=="Ok"||!j.trips||!j.trips.length)
@@ -581,7 +575,7 @@ async function circuitoFijo(puntos,modo){
   var lista=modo==="base"?puntos.concat([puntos[0]]):puntos.slice();
   var url="https://router.project-osrm.org/route/v1/driving/"+cadena(lista)+
     "?overview=full&geometries=geojson&steps=true";
-  var r=await fetch(url,{headers:CAB});
+  var r=await fetch(url,{headers:CABECERAS_JSON});
   if(!r.ok) throw new Error("El servicio de rutas no respondió.");
   var j=await r.json();
   if(j.code!=="Ok"||!j.routes||!j.routes.length)
@@ -753,9 +747,7 @@ function sentidoCardinal(desde,hacia){
   return dy<0?"sur":"norte";
 }
 
-/* ============================================================
-   Estado
-   ============================================================ */
+/* --- Estado --- */
 var diagnosticoDeteccion={descartados:[],aceptados:[],ambiguos:[]};
 var tipoNuevaParada="propiedad";
 var googleMapsEtapas=[];
@@ -764,7 +756,7 @@ var destinoFinal=null;    /* {lat,lon,etiqueta} cuando modoFin === "otra" */
 var base=null;
 var paradas=[];          /* [{lat,lon,etiqueta}] en el orden actual */
 var circuito=null;       /* {km,min,geometria,legs,legGeometrias,peajes} */
-var comparacion=null;    /* {kmOriginal,minOriginal} */
+var comparacion=null;    /* referencia previa: {km,min} */
 var horaSalida="09:00";
 var selectorHoraAbierto=false;
 var horaPendiente="09:00";
@@ -896,9 +888,7 @@ function agenda(){
   };
 }
 
-/* ============================================================
-   Catálogo nacional MOP y detección por tramo
-   ============================================================ */
+/* --- Catálogo nacional MOP y detección por tramo --- */
 function filasTarifaPunto(p){
   if(!indiceCatalogo) return [];
   var filas=(indiceCatalogo.tarifasPunto[p.point_id]||[]).slice();
@@ -958,16 +948,16 @@ function elegirTarifaFilas(filas,fecha,min,routeId,sentido,punto){
 
   if(!elegida&&(porTipo.NORMAL||porTipo.PUNTA)){
     if(routeId==="route_acceso_nororiente"){
-      punta=REGLAS.nororiente(fecha,min);
+      punta=REGLAS_PUNTA_RUTA.nororiente(fecha,min);
       horarioFuente="oficial";
     }else if(routeId==="route_ruta_68_santiago_valparaiso_vina"){
-      punta=REGLAS.r68(fecha,min,sentido);
+      punta=REGLAS_PUNTA_RUTA.r68(fecha,min,sentido);
       horarioFuente="oficial";
     }else if(routeId==="route_ruta_60_ch"){
-      punta=REGLAS.r60(fecha,min,sentido);
+      punta=REGLAS_PUNTA_RUTA.r60(fecha,min,sentido);
       horarioFuente="oficial";
     }else if(routeId==="route_ruta_78"){
-      punta=REGLAS.r78(fecha,min,sentido);
+      punta=REGLAS_PUNTA_RUTA.r78(fecha,min,sentido);
       horarioFuente="oficial";
     }else{
       punta=esHoraPuntaGenerica(fecha,min);
@@ -1371,9 +1361,7 @@ function detectarPeajesCatalogo(geometrias){
   });
 }
 
-/* ============================================================
-   Cálculo
-   ============================================================ */
+/* --- Cálculo --- */
 function longitudGeometriaMetros(geo){
   var total=0;
   for(var i=1;i<(geo||[]).length;i++) total+=haversine(geo[i-1],geo[i]);
@@ -1513,9 +1501,7 @@ function calcular(){
           regresaBase:ag.regresaBase,catalogoCargado:!!indiceCatalogo};
 }
 
-/* ============================================================
-   Mapa
-   ============================================================ */
+/* --- Mapa --- */
 function iniciarMapa(){
   if(mapa||typeof L==="undefined") return;
   $("mapa").classList.add("activo");
@@ -1652,9 +1638,7 @@ function dibujarMapa(){
   mapa.fitBounds(L.latLngBounds(lim),{padding:[26,26]});
 }
 
-/* ============================================================
-   Render
-   ============================================================ */
+/* --- Render --- */
 function confirmarSelectorHora(){
   if(!selectorHoraAbierto) return;
   var hh=$("hora24Horas"),mm=$("hora24Minutos"),fd=$("fecha24Input");
@@ -2260,9 +2244,7 @@ function render(){
   dibujarMapa();
 }
 
-/* ============================================================
-   Ruteo
-   ============================================================ */
+/* --- Ruteo --- */
 async function recalcular(optimizar_orden){
   if(!base||!paradas.length) return;
   normalizarParadas();
@@ -2354,9 +2336,7 @@ async function recalcular(optimizar_orden){
   }
 }
 
-/* ============================================================
-   Flujo
-   ============================================================ */
+/* --- Flujo --- */
 function pintarSugerencias(lista,cont,alElegir){
   cont.innerHTML="";
   lista.forEach(function(item){
@@ -2428,9 +2408,7 @@ async function buscar(texto,cont,alElegir){
   }
 }
 
-/* ============================================================
-   Persistencia y eventos
-   ============================================================ */
+/* --- Persistencia y eventos --- */
 var CAMPOS=["minSitio","postproduccion","tarifa","rendimiento","precioL","desgaste","valorHora"];
 
 function guardar(){
@@ -2516,9 +2494,7 @@ CAMPOS.forEach(function(k){
   $(k).addEventListener("input",function(){ render(); guardar(); });
 });
 
-/* ============================================================
-   Arranque
-   ============================================================ */
+/* --- Arranque --- */
 (async function(){
   var h=new Date();
   $("fecha").value=h.getFullYear()+"-"+String(h.getMonth()+1).padStart(2,"0")+"-"+
