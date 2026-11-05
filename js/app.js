@@ -1633,7 +1633,7 @@ function dibujarMapa(){
     html:'<div class="marcador" style="width:14px;height:14px;background:#141311"></div>',
     iconSize:[14,14],iconAnchor:[7,7]});
   L.marker([base.lat,base.lon],{icon:ib})
-    .bindPopup('<b class="rotulo">Base</b>'+esc(base.etiqueta)).addTo(capaPuntos);
+    .bindPopup('<b class="rotulo">Punto de salida</b>'+esc(base.etiqueta)).addTo(capaPuntos);
 
   if(modoFin==="otra"&&destinoFinal){
     var ifin=L.divIcon({className:"",
@@ -1925,7 +1925,7 @@ function textoModoFin(){
   if(modoFin==="otra") return destinoFinal
     ?"El recorrido terminará en "+destinoFinal.etiqueta+"."
     :"Falta fijar la dirección final.";
-  return "El recorrido volverá a la base.";
+  return "El recorrido volverá al punto de salida.";
 }
 function actualizarPanelFin(){
   modoFin=modoFinValido(modoFin);
@@ -2161,9 +2161,9 @@ function render(){
 
   $("tramos").innerHTML=c.agenda.tramos.map(function(t,i){
     var desde=t.desde===base
-      ?"Base":nombreTramoParada(t.desde,paradas.indexOf(t.desde));
+      ?"Punto de salida":nombreTramoParada(t.desde,paradas.indexOf(t.desde));
     var hacia=t.hacia===base
-      ?"Base":nombreTramoParada(t.hacia,paradas.indexOf(t.hacia));
+      ?"Punto de salida":nombreTramoParada(t.hacia,paradas.indexOf(t.hacia));
     var color=i===0?"var(--ida)":
       ((t.clase==="regreso"||t.clase==="destino_final")
         ?"var(--vuelta)":"var(--ambar)");
@@ -2195,9 +2195,9 @@ function render(){
   $("vBencina").textContent=pesos(c.bencina);
   $("vPeajes").textContent=c.catalogoCargado?pesos(c.peajes):"—";
   $("vDesgaste").textContent=pesos(c.desgaste);
-  $("vTraslado").textContent=c.catalogoCargado
-    ? pesos(c.traslado)
-    : "≥ "+pesos(c.bencina+c.desgaste);
+  $("vTraslado").textContent=costoMinimo
+    ? "≥ "+pesos(c.traslado)
+    : pesos(c.traslado);
 
   $("vIngresosDia").textContent=pesos(c.ingresos);
   $("vTrasladoDia").textContent="− "+pesos(c.traslado);
@@ -2445,7 +2445,7 @@ async function fijarBase(item){
   $("baseActual").textContent="Punto de salida: "+base.etiqueta;
   $("dirBase").value="";
   await almacen.escribir("base-foto",JSON.stringify(base));
-  avisar("Base guardada.",false);
+  avisar("Punto de salida guardado.",false);
   if(paradas.length) recalcular(false); else render();
 }
 
