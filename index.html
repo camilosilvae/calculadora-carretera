@@ -68,7 +68,7 @@
     <p class="fin-titulo">¿Dónde termina el recorrido?</p>
     <div class="fin-opciones" role="group" aria-label="Final del recorrido">
       <button type="button" class="fin-opcion activo" data-modo-fin="base" aria-pressed="true">
-        <b>Volver a la base</b><span>Opción predeterminada</span>
+        <b>Volver al punto de salida</b><span>Opción predeterminada</span>
       </button>
       <button type="button" class="fin-opcion" data-modo-fin="ultima" aria-pressed="false">
         <b>Terminar en la última parada</b><span>No agrega regreso</span>
@@ -88,7 +88,7 @@
         <button type="button" class="btn suave" id="btnQuitarFin" disabled>Quitar dirección</button>
       </div>
     </div>
-    <p class="fin-estado" id="finEstado">El recorrido volverá a la base.</p>
+    <p class="fin-estado" id="finEstado">El recorrido volverá al punto de salida.</p>
   </section>
 
   <div class="barra-orden" id="barraOrden"></div>
@@ -289,7 +289,7 @@
   <div class="pie">
     <p><b>Qué optimiza y qué no.</b> El orden lo resuelve OSRM usando datos de OpenStreetMap y minimizando el tiempo total. El punto final se mantiene fijo durante la optimización. En modo comercial puedes reordenar a mano cuando una propiedad necesita una hora específica; en modo recreativo las paradas se consideran puntos de paso.</p>
     <p><b>Las horas de llegada son estimadas.</b> En modo comercial se suma la duración de cada sesión; en modo recreativo no se agrega permanencia en las paradas. La fecha y hora son importantes porque pueden cambiar la tarifa de algunos peajes.</p>
-    <p><b>Ida y vuelta.</b> En un circuito con varias paradas, el sentido de la primera salida y el del regreso pueden ser distintos, y la punta de las interurbanas depende del sentido. El cálculo los trata por separado.</p>
+    <p><b>Ida y vuelta.</b> En un circuito con varias paradas, el sentido de la primera salida y el del regreso al punto inicial pueden ser distintos, y la punta de las interurbanas depende del sentido. El cálculo los trata por separado.</p>
     <p><b>Datos separados y versionados.</b> El mapa y el recorrido usan Nominatim y OSRM. Los cruces se detectan con la base geográfica de pórticos; los valores se obtienen del paquete tarifario anual. Cambiar las tarifas no modifica coordenadas.</p>
     <p><b>Ejecución.</b> La versión publicada funciona directamente en GitHub Pages. Para desarrollo local, sirve la carpeta por HTTP para permitir la carga de los datos JSON.</p>
     <p class="estado" id="estado"></p>
