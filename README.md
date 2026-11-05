@@ -6,9 +6,13 @@ Herramienta web para planificar jornadas de fotografía inmobiliaria en Chile. P
 
 ## Qué resuelve
 
-- Planificación de rutas con varias propiedades y paradas técnicas.
-- Tres formas de terminar la jornada: volver a la base, terminar en la última parada o fijar otro destino final.
-- Estimación de combustible, desgaste del vehículo, tiempo de trabajo y margen por propiedad.
+- Planificación de rutas con múltiples destinos y paradas.
+- Punto de salida configurable al comienzo del flujo.
+- Dos modos de uso: **Comercial · Propiedades** y **Viaje recreativo**.
+- Tres formas de terminar el recorrido: volver al punto de salida, terminar en la última parada o fijar otro destino final.
+- Estimación de combustible, desgaste del vehículo y peajes.
+- En modo comercial: tiempo de trabajo, tarifa, margen y rentabilidad por propiedad.
+- En modo recreativo: costo total del recorrido y costo estimado por persona.
 - Detección de peajes y pórticos a partir de la geometría real de cada tramo.
 - Aplicación de tarifas horarias 2026 cuando existe una regla verificable.
 - Tratamiento específico de AVO I mediante pares de entrada/salida y su matriz tarifaria.
