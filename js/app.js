@@ -749,6 +749,7 @@ function sentidoCardinal(desde,hacia){
 
 /* --- Estado --- */
 var diagnosticoDeteccion={descartados:[],aceptados:[],ambiguos:[]};
+var tipoViaje="comercial";      /* comercial | recreativo */
 var tipoNuevaParada="propiedad";
 var googleMapsEtapas=[];
 var modoFin="base";       /* base | ultima | otra */
@@ -770,14 +771,22 @@ function fechaElegida(){
   return new Date(parseInt(p[0],10),parseInt(p[1],10)-1,parseInt(p[2],10));
 }
 
-/* Horario completo: un registro por propiedad y uno por cada tramo vial. */
+/* Horario completo: un registro por parada y uno por cada tramo vial. */
+function tipoViajeValido(valor){
+  return ["comercial","recreativo"].indexOf(valor)>=0?valor:"comercial";
+}
+function esViajeRecreativo(){
+  return tipoViaje==="recreativo";
+}
 function tipoParada(p){
   return p&&["propiedad","tecnica"].indexOf(p.tipo)>=0?p.tipo:"propiedad";
 }
 function etiquetaTipoParada(p){
+  if(esViajeRecreativo()) return "Parada del viaje";
   return tipoParada(p)==="tecnica"?"Parada técnica":"Propiedad";
 }
 function duracionParada(p){
+  if(esViajeRecreativo()) return 0;
   if(tipoParada(p)==="propiedad") return num("minSitio");
   var minutos=Number(p.minutosTecnicos);
   return Math.max(0,isFinite(minutos)?minutos:15);
@@ -821,9 +830,10 @@ function finalRutaValido(){
   return finalExternoConfigurado();
 }
 function nombreTramoParada(p,indice){
-  if(!p) return "Base";
+  if(!p) return "Punto de salida";
   if(destinoFinal&&p===destinoFinal) return "Destino final · "+(p.etiqueta||"Otra dirección").split(",")[0];
   var principal=(p.etiqueta||("Parada "+(indice+1))).split(",")[0];
+  if(esViajeRecreativo()) return "Parada "+(indice+1)+" · "+principal;
   return tipoParada(p)==="tecnica"
     ?"Técnica · "+principal
     :"Propiedad "+(indice+1)+" · "+principal;
@@ -1471,17 +1481,21 @@ function calcular(){
   var bencina=litros*num("precioL");
   var desgaste=km*num("desgaste");
   var traslado=bencina+peajes+desgaste;
+  var personas=Math.max(1,Math.round(num("personas")||1));
+  var costoPersona=traslado/personas;
 
   var props=paradas.filter(function(p){ return tipoParada(p)==="propiedad"; }).length;
   var tecnicas=paradas.filter(function(p){ return tipoParada(p)==="tecnica"; }).length;
   var minutosTecnicos=paradas.reduce(function(s,p){
     return s+(tipoParada(p)==="tecnica"?duracionParada(p):0);
   },0);
-  var minutosTrabajo=props*(num("minSitio")+num("postproduccion"));
+  var minutosTrabajo=esViajeRecreativo()
+    ? 0
+    : props*(num("minSitio")+num("postproduccion"));
   var horasTotales=(minutos+minutosTecnicos+minutosTrabajo)/60;
-  var costoTiempoTotal=horasTotales*num("valorHora");
-  var tar=num("tarifa");
-  var ingresos=props*tar;
+  var costoTiempoTotal=esViajeRecreativo()?0:horasTotales*num("valorHora");
+  var tar=esViajeRecreativo()?0:num("tarifa");
+  var ingresos=esViajeRecreativo()?0:props*tar;
   var totalDia=ingresos-traslado-costoTiempoTotal;
   var trasUnit=props?traslado/props:0;
   var horasProp=props?horasTotales/props:0;
@@ -1498,6 +1512,7 @@ function calcular(){
           neto:neto,margen:tar>0&&props?neto/tar:0,sinValor:sinValor,
           horariosEstimados:horariosEstimados,avoAmbiguos:avoAmbiguos,
           crucesAmbiguos:diagnosticoDeteccion.ambiguos.length,totalDia:totalDia,
+          personas:personas,costoPersona:costoPersona,tipoViaje:tipoViaje,
           regresaBase:ag.regresaBase,catalogoCargado:!!indiceCatalogo};
 }
 
@@ -1653,6 +1668,36 @@ function confirmarSelectorHora(){
   guardar();
 }
 
+function actualizarTipoViajeUI(){
+  tipoViaje=tipoViajeValido(tipoViaje);
+  var recreativo=esViajeRecreativo();
+
+  document.querySelectorAll("[data-tipo-viaje]").forEach(function(b){
+    var activo=b.getAttribute("data-tipo-viaje")===tipoViaje;
+    b.classList.toggle("activo",activo);
+    b.setAttribute("aria-pressed",activo?"true":"false");
+  });
+  document.querySelectorAll("[data-solo-comercial]").forEach(function(el){
+    el.hidden=recreativo;
+  });
+  document.querySelectorAll("[data-solo-recreativo]").forEach(function(el){
+    el.hidden=!recreativo;
+  });
+
+  var selector=$("selectorDestinoNuevo");
+  if(selector) selector.hidden=recreativo;
+  var estadoTipo=$("estadoTipoViaje");
+  if(estadoTipo) estadoTipo.textContent=recreativo
+    ?"Modo recreativo: se calcula el costo del viaje y su reparto."
+    :"Modo comercial: se calcula costo, tiempo y rentabilidad por propiedad.";
+  if($("direccion")) $("direccion").placeholder=recreativo
+    ?"Dirección o coordenadas de una parada"
+    :"Dirección o coordenadas del destino";
+  if($("btnBuscar")) $("btnBuscar").textContent=recreativo
+    ?"Agregar parada"
+    :"Agregar destino";
+}
+
 function renderAtajos(){
   var c=$("atajos"); c.innerHTML="";
   ATAJOS.forEach(function(a){
@@ -1677,7 +1722,7 @@ function renderParadas(){
   var liBase=document.createElement("li");
   liBase.className="parada base";
   liBase.innerHTML='<span class="orden">◇</span>'+
-    '<span class="texto">Base<small>'+esc(base?base.etiqueta:"")+"</small></span>"+
+    '<span class="texto">Punto de salida<small>'+esc(base?base.etiqueta:"")+"</small></span>"+
     '<span class="reloj hora24-wrap" id="hora24Wrap">'+
       '<span class="salida-botones">'+
         '<span class="salida-control">'+
@@ -1755,12 +1800,12 @@ function renderParadas(){
   paradas.forEach(function(p,i){
     var tipo=tipoParada(p),fila=ag&&ag.filas[i];
     var li=document.createElement("li");
-    li.className="parada "+tipo;
+    li.className="parada "+(esViajeRecreativo()?"recreativa":tipo);
     var horario=fila
       ? reloj(fila.llegada)+"<small>sales "+reloj(fila.salida)+"</small>"
       :"";
 
-    var botonesTipo=
+    var botonesTipo=esViajeRecreativo()?"":
       '<span class="tipo-parada" data-indice="'+i+'">'+
         '<button type="button" data-tipo="propiedad" class="'+(tipo==="propiedad"?"activo":"")+'">Propiedad</button>'+
         '<button type="button" data-tipo="tecnica" class="'+(tipo==="tecnica"?"activo":"")+'">Técnica</button>'+
@@ -1779,7 +1824,7 @@ function renderParadas(){
       '<span class="texto">'+esc(p.etiqueta.split(",")[0])+
         "<small>"+esc(p.etiqueta.split(",").slice(1).join(",").trim())+"</small>"+
         '<span class="tipo-resumen">'+esc(etiquetaTipoParada(p))+
-          (tipo==="tecnica"?" · "+
+          (!esViajeRecreativo()&&tipo==="tecnica"?" · "+
             (isFinite(Number(p.minutosTecnicos))?Number(p.minutosTecnicos):15)+" min":"")+
         "</span>"+botonesTipo+"</span>"+
       '<span class="reloj">'+horario+"</span>"+
@@ -1791,7 +1836,7 @@ function renderParadas(){
     var liRegreso=document.createElement("li");
     liRegreso.className="parada base";
     liRegreso.innerHTML='<span class="orden">◆</span>'+
-      '<span class="texto">Vuelta a la base</span>'+
+      '<span class="texto">Vuelta al punto de salida</span>'+
       '<span class="reloj">'+reloj(ag.regreso)+"<small>llegada estimada</small></span>";
     ul.appendChild(liRegreso);
   }else if(ag&&modoFin==="otra"&&destinoFinal&&ag.llegadaFinal!==null){
@@ -2062,11 +2107,19 @@ function prepararGoogleMaps(){
 }
 
 function render(){
+  actualizarTipoViajeUI();
   renderParadas();
   var c=calcular();
 
   if(!c){
     $("valorNeto").textContent="—";
+    $("valorCostoViaje").textContent="—";
+    $("vCostoViaje").textContent="$0";
+    $("vCostoPersona").textContent="$0";
+    $("vPersonasViaje").textContent=String(Math.max(1,Math.round(num("personas")||1)));
+    $("notaCostoViaje").textContent=base
+      ?"Agrega al menos un destino para calcular el viaje."
+      :"Fija tu punto de salida y agrega un destino.";
     $("resumenRuta").textContent="—";
     $("resumenPeajes").textContent="—";
     $("tramos").innerHTML="";
@@ -2077,15 +2130,21 @@ function render(){
       "vTrasUnit","vTiempo","vGananciaOperacion","vIngresosDia",
       "vTrasladoDia","vTiempoDia","vDia"
     ].forEach(function(id){ $(id).textContent="$0"; });
+    $("veredicto").textContent=base
+      ?"Agrega al menos un destino para calcular el recorrido."
+      :"Fija tu punto de salida para empezar.";
     prepararGoogleMaps();
     return;
   }
 
-  $("etiquetaDestino").textContent=
-    c.props+(c.props===1?" propiedad":" propiedades")+
-    (c.tecnicas?" · "+c.tecnicas+(c.tecnicas===1?" técnica":" técnicas"):"")+
-    (modoFin==="base"?" · vuelve a base":
-      (modoFin==="ultima"?" · termina en última":" · termina en otra dirección"));
+  $("etiquetaDestino").textContent=esViajeRecreativo()
+    ? paradas.length+(paradas.length===1?" parada":" paradas")+
+      (modoFin==="base"?" · vuelve al punto de salida":
+        (modoFin==="ultima"?" · termina en última":" · termina en otra dirección"))
+    : c.props+(c.props===1?" propiedad":" propiedades")+
+      (c.tecnicas?" · "+c.tecnicas+(c.tecnicas===1?" técnica":" técnicas"):"")+
+      (modoFin==="base"?" · vuelve al punto de salida":
+        (modoFin==="ultima"?" · termina en última":" · termina en otra dirección"));
 
   $("resumenRuta").textContent=
     coma(c.km)+" km · "+Math.round(c.minutos)+" min de manejo";
@@ -2116,6 +2175,16 @@ function render(){
   var provisional=!c.catalogoCargado||c.sinValor>0||
     c.avoAmbiguos>0||c.crucesAmbiguos>0||c.horariosEstimados>0;
   var prefijo=provisional?"≤ ":"";
+  var costoMinimo=!c.catalogoCargado||c.sinValor>0||c.avoAmbiguos>0||c.crucesAmbiguos>0;
+  var prefijoCosto=costoMinimo?"≥ ":(c.horariosEstimados>0?"≈ ":"");
+
+  $("valorCostoViaje").textContent=prefijoCosto+pesos(c.traslado);
+  $("vCostoViaje").textContent=prefijoCosto+pesos(c.traslado);
+  $("vPersonasViaje").textContent=String(c.personas);
+  $("vCostoPersona").textContent=prefijoCosto+pesos(c.costoPersona);
+  $("notaCostoViaje").textContent=provisional
+    ?"Incluye los costos confirmados hasta ahora; hay peajes o reglas por revisar."
+    :"Combustible, peajes y desgaste del vehículo para todo el recorrido.";
 
   $("vIngresoProp").textContent=c.props?pesos(c.tarifa):"—";
   $("vTrasUnit").textContent=c.props?"− "+pesos(c.trasUnit):"—";
@@ -2182,7 +2251,9 @@ function render(){
     alerta.hidden=false;
     $("alertaTitulo").textContent="Resultado provisional";
     $("alertaDetalle").textContent=
-      mensajes.join(" · ")+". La ganancia real puede ser inferior.";
+      mensajes.join(" · ")+(esViajeRecreativo()
+        ? ". El costo real del viaje puede ser mayor."
+        : ". La ganancia real puede ser inferior.");
   }else{
     alerta.hidden=true;
   }
@@ -2211,7 +2282,23 @@ function render(){
   });
   var jornadaLarga=(c.agenda.fin-c.agenda.salidaBase)>10*60;
 
-  if(c.props===0){
+  if(esViajeRecreativo()){
+    if(provisional){
+      v.innerHTML="<b>Presupuesto provisional.</b> El recorrido suma al menos "+
+        pesos(c.traslado)+" en costos confirmados. Con "+c.personas+
+        (c.personas===1?" persona":" personas")+" son "+pesos(c.costoPersona)+
+        " por persona antes de cualquier cobro pendiente.";
+    }else if(hayPunta){
+      v.innerHTML="<b>El viaje utiliza tarifa punta.</b> El costo total estimado es "+
+        pesos(c.traslado)+" ("+pesos(c.costoPersona)+" por persona). Cambiar la hora "+
+        "puede reducir algunos peajes.";
+    }else{
+      v.classList.add("bien");
+      v.innerHTML="<b>Presupuesto del viaje.</b> "+pesos(c.traslado)+" en total · "+
+        pesos(c.costoPersona)+" por persona para "+c.personas+
+        (c.personas===1?" viajero.":" viajeros.");
+    }
+  }else if(c.props===0){
     v.innerHTML="<b>Recorrido sin propiedades trabajadas.</b> "+
       "Se muestran los costos de transporte y tiempo, pero no existe ingreso.";
   }else if(provisional){
@@ -2355,7 +2442,7 @@ function pintarSugerencias(lista,cont,alElegir){
 async function fijarBase(item){
   base={lat:parseFloat(item.lat),lon:parseFloat(item.lon),
         etiqueta:item.display_name.split(", ").slice(0,3).join(", ")};
-  $("baseActual").textContent="Sales desde: "+base.etiqueta;
+  $("baseActual").textContent="Punto de salida: "+base.etiqueta;
   $("dirBase").value="";
   await almacen.escribir("base-foto",JSON.stringify(base));
   avisar("Base guardada.",false);
@@ -2367,11 +2454,14 @@ function agregarParada(item){
     avisar("Ocho paradas es el límite práctico para el servicio abierto de rutas.",true);
     return;
   }
+  var tipo=esViajeRecreativo()
+    ?"tecnica"
+    :(tipoNuevaParada==="tecnica"?"tecnica":"propiedad");
   paradas.push({
     lat:parseFloat(item.lat),lon:parseFloat(item.lon),
     etiqueta:item.display_name.split(", ").slice(0,3).join(", "),
-    tipo:tipoNuevaParada==="tecnica"?"tecnica":"propiedad",
-    minutosTecnicos:tipoNuevaParada==="tecnica"?15:0
+    tipo:tipo,
+    minutosTecnicos:esViajeRecreativo()?0:(tipo==="tecnica"?15:0)
   });
   normalizarParadas();
   $("direccion").value="";
@@ -2409,14 +2499,15 @@ async function buscar(texto,cont,alElegir){
 }
 
 /* --- Persistencia y eventos --- */
-var CAMPOS=["minSitio","postproduccion","tarifa","rendimiento","precioL","desgaste","valorHora"];
+var CAMPOS=["minSitio","postproduccion","tarifa","personas","rendimiento","precioL","desgaste","valorHora"];
 
 function guardar(){
   clearTimeout(temporizador);
   temporizador=setTimeout(function(){
     var cfg={
       horaSalida:horaSalida,fechaSalida:$("fecha").value,campos:{},paradas:paradas,
-      modoFin:modoFin,destinoFinal:destinoFinal,tipoNuevaParada:tipoNuevaParada
+      tipoViaje:tipoViaje,modoFin:modoFin,destinoFinal:destinoFinal,
+      tipoNuevaParada:tipoNuevaParada
     };
     CAMPOS.forEach(function(k){ cfg.campos[k]=$(k).value; });
     almacen.escribir("config-foto",JSON.stringify(cfg));
@@ -2442,6 +2533,15 @@ document.addEventListener("keydown",function(e){
   if(btnFecha) btnFecha.setAttribute("aria-expanded","false");
 });
 
+document.querySelectorAll("[data-tipo-viaje]").forEach(function(b){
+  b.addEventListener("click",function(){
+    tipoViaje=tipoViajeValido(b.getAttribute("data-tipo-viaje"));
+    actualizarTipoViajeUI();
+    render();
+    guardar();
+  });
+});
+
 document.querySelectorAll("[data-tipo-nuevo]").forEach(function(b){
   b.addEventListener("click",function(){
     tipoNuevaParada=b.getAttribute("data-tipo-nuevo");
@@ -2465,7 +2565,11 @@ $("dirFin").addEventListener("keydown",function(e){
 $("btnQuitarFin").addEventListener("click",quitarDestinoFinal);
 
 $("btnBuscar").addEventListener("click",function(){
-  if(!base){ avisar("Primero fija tu base de salida, abajo.",true); $("panelBase").open=true; return; }
+  if(!base){
+    avisar("Primero fija tu punto de salida arriba.",true);
+    $("dirBase").focus();
+    return;
+  }
   buscar($("direccion").value,$("sugerencias"),agregarParada);
 });
 $("direccion").addEventListener("keydown",function(e){ if(e.key==="Enter") $("btnBuscar").click(); });
@@ -2513,6 +2617,7 @@ $("btnActualizarCalculo").addEventListener("click",function(){
       var cfg=JSON.parse(g);
       if(cfg.horaSalida&&hora24Valida(cfg.horaSalida)) horaSalida=cfg.horaSalida;
       if(cfg.fechaSalida&&fechaIsoValida(cfg.fechaSalida)) $("fecha").value=cfg.fechaSalida;
+      if(cfg.tipoViaje) tipoViaje=tipoViajeValido(cfg.tipoViaje);
       if(cfg.modoFin) modoFin=modoFinValido(cfg.modoFin);
       if(cfg.destinoFinal&&isFinite(Number(cfg.destinoFinal.lat))&&
           isFinite(Number(cfg.destinoFinal.lon)))
@@ -2533,10 +2638,9 @@ $("btnActualizarCalculo").addEventListener("click",function(){
 
   var b=await almacen.leer("base-foto");
   if(b){ try{ base=JSON.parse(b);
-    $("baseActual").textContent="Sales desde: "+base.etiqueta; }catch(e){} }
+    $("baseActual").textContent="Punto de salida: "+base.etiqueta; }catch(e){} }
   else{
-    $("panelBase").open=true;
-    $("baseActual").textContent="Todavía no has fijado tu base. Ingresa tu dirección de salida.";
+    $("baseActual").textContent="Todavía no has fijado tu punto de salida.";
   }
 
   var geoGuardada=await almacen.leer(GEO_KEY);
@@ -2549,6 +2653,7 @@ $("btnActualizarCalculo").addEventListener("click",function(){
     actualizarEstadoCatalogo("error","Los datos guardados no pudieron restaurarse: "+e.message);
   }
 
+  actualizarTipoViajeUI();
   renderAtajos();
   document.querySelectorAll("[data-tipo-nuevo]").forEach(function(b){
     b.classList.toggle("activo",b.getAttribute("data-tipo-nuevo")===tipoNuevaParada);
