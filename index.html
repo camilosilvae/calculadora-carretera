@@ -17,10 +17,37 @@
 <div class="marco">
 
   <header>
-    <p class="eyebrow">Fotografía inmobiliaria · Chile</p>
-    <h1>Arma la salida</h1>
-    <p class="sub">Agrega propiedades y paradas técnicas. Luego decide si vuelves a la base, terminas en la última parada o continúas hacia otra dirección.</p>
+    <p class="eyebrow">Planificador de viajes · Chile</p>
+    <h1>Planifica el recorrido</h1>
+    <p class="sub">Define desde dónde sales, elige el tipo de viaje y agrega tus destinos. La misma ruta puede calcular costos comerciales o el presupuesto de un viaje recreativo.</p>
   </header>
+
+  <section class="configuracion-inicial" aria-label="Configuración inicial del viaje">
+    <div class="inicio-panel">
+      <p class="inicio-titulo">1 · Punto de salida</p>
+      <div class="buscador">
+        <input type="text" id="dirBase" placeholder="Dirección o coordenadas de salida" autocomplete="off">
+        <button class="btn" id="btnBase">Fijar salida</button>
+      </div>
+      <ul class="sugerencias" id="sugBase"></ul>
+      <p class="inicio-estado" id="baseActual">Todavía no has fijado tu punto de salida.</p>
+    </div>
+
+    <div class="inicio-panel">
+      <p class="inicio-titulo">2 · Tipo de viaje</p>
+      <div class="tipo-viaje-opciones" role="group" aria-label="Tipo de viaje">
+        <button type="button" class="tipo-viaje activo" data-tipo-viaje="comercial" aria-pressed="true">
+          <b>Comercial · Propiedades</b>
+          <span>Costos, tiempo, tarifa y rentabilidad de la jornada.</span>
+        </button>
+        <button type="button" class="tipo-viaje" data-tipo-viaje="recreativo" aria-pressed="false">
+          <b>Viaje recreativo</b>
+          <span>Combustible, peajes, desgaste y costo por persona.</span>
+        </button>
+      </div>
+      <p class="inicio-estado" id="estadoTipoViaje">Modo comercial activo.</p>
+    </div>
+  </section>
 
   <div class="buscador">
     <input type="text" id="direccion" placeholder="Dirección o coordenadas del destino" autocomplete="off">
@@ -97,8 +124,8 @@
         <div id="tramos"></div>
       </div>
 
-      <div class="bloque">
-        <p class="titulo-bloque">La jornada <span>tiempo y tarifa</span></p>
+      <div class="bloque" data-solo-comercial>
+        <p class="titulo-bloque">La jornada comercial <span>tiempo y tarifa</span></p>
         <input type="date" id="fecha" hidden>
         <div class="campo">
           <label for="minSitio">Duración de cada sesión
@@ -115,17 +142,15 @@
         </div>
       </div>
 
-      <details id="panelBase">
-        <summary>Tu base de salida</summary>
-        <div>
-          <div class="buscador">
-            <input type="text" id="dirBase" placeholder="Dirección o coordenadas de tu base" autocomplete="off">
-            <button class="btn" id="btnBase">Fijar</button>
-          </div>
-          <ul class="sugerencias" id="sugBase"></ul>
-          <p class="nota-panel" id="baseActual" style="margin-top:6px"></p>
+      <div class="bloque" data-solo-recreativo hidden>
+        <p class="titulo-bloque">Viaje recreativo <span>reparto del costo</span></p>
+        <div class="campo">
+          <label for="personas">Personas que comparten el viaje
+            <span class="pista">El costo total se divide entre este número</span></label>
+          <div class="entrada"><input id="personas" type="number" min="1" step="1" value="2"><span class="post">pers.</span></div>
         </div>
-      </details>
+        <p class="nota-panel">Las paradas recreativas se consideran puntos de paso sin tiempo de permanencia. Los peajes se calculan con la fecha y hora de salida del recorrido.</p>
+      </div>
 
       <details id="panelCatalogoNacional" hidden aria-hidden="true">
         <summary>Datos nacionales de pórticos y tarifas</summary>
@@ -173,7 +198,7 @@
             <div class="entrada"><span class="pre">$</span><input id="precioL" type="number" min="0" step="10" value="1250"><span class="post">/L</span></div></div>
           <div class="campo"><label for="desgaste">Desgaste por km</label>
             <div class="entrada"><span class="pre">$</span><input id="desgaste" type="number" min="0" step="10" value="90"></div></div>
-          <div class="campo"><label for="valorHora">Valor de tu hora</label>
+          <div class="campo" data-solo-comercial><label for="valorHora">Valor de tu hora</label>
             <div class="entrada"><span class="pre">$</span><input id="valorHora" type="number" min="0" step="1000" value="14000"><span class="post">/h</span></div></div>
         </div>
       </details>
@@ -191,7 +216,7 @@
         <span id="alertaDetalle"></span>
       </div>
 
-      <section class="lectura-seccion principal">
+      <section class="lectura-seccion principal" data-solo-comercial>
         <div class="cifra-p">
           <span class="etiqueta">Ganancia estimada por propiedad</span>
           <span class="valor" id="valorNeto">—</span>
@@ -206,7 +231,7 @@
         </div>
       </section>
 
-      <div class="medidor" aria-label="Margen estimado">
+      <div class="medidor" aria-label="Margen estimado" data-solo-comercial>
         <div class="escala">
           <div class="barra"></div>
           <div class="marca" style="left:25%"></div>
@@ -223,6 +248,20 @@
         </div>
       </div>
 
+      <section class="lectura-seccion principal" data-solo-recreativo hidden>
+        <div class="cifra-p">
+          <span class="etiqueta">Costo estimado del viaje</span>
+          <span class="valor" id="valorCostoViaje">—</span>
+          <span class="nota" id="notaCostoViaje">Fija tu punto de salida y agrega un destino.</span>
+        </div>
+
+        <div class="operacion-propiedad">
+          <div class="linea"><span>Costo directo confirmado</span><span id="vCostoViaje">$0</span></div>
+          <div class="linea"><span>Personas que comparten</span><span id="vPersonasViaje">2</span></div>
+          <div class="linea suma resultado"><span>Costo por persona</span><span id="vCostoPersona">$0</span></div>
+        </div>
+      </section>
+
       <section class="lectura-seccion">
         <h3>Costos del recorrido completo</h3>
         <div class="linea"><span>Combustible<small id="detLitros"></small></span><span id="vBencina">$0</span></div>
@@ -235,7 +274,7 @@
         <div class="linea suma"><span>Total directo confirmado</span><span id="vTraslado">$0</span></div>
       </section>
 
-      <section class="lectura-seccion">
+      <section class="lectura-seccion" data-solo-comercial>
         <h3>Resultado de la jornada</h3>
         <div class="linea"><span>Ingresos por propiedades</span><span id="vIngresosDia">$0</span></div>
         <div class="linea resta"><span>Costos de traslado</span><span id="vTrasladoDia">− $0</span></div>
@@ -248,8 +287,8 @@
   </div>
 
   <div class="pie">
-    <p><b>Qué optimiza y qué no.</b> El orden lo resuelve el servicio de rutas OSRM usando datos de OpenStreetMap y minimizando el tiempo total. El lugar donde termina la jornada se configura aparte: volver a la base, terminar en la última parada o continuar hacia otra dirección. El final elegido se mantiene fijo durante la optimización. No sabe de luz, ni de la hora en que el dueño te abre la puerta, ni de peajes. Por eso puedes reordenar a mano con las flechas: el costo se recalcula y ves de inmediato cuánto te cuesta esa decisión. Si una propiedad tiene fachada poniente y la quieres al atardecer, mándala al final aunque el optimizador diga otra cosa.</p>
-    <p><b>Las horas de llegada son estimadas</b> sumando el trayecto más la duración de cada sesión. Sirven sobre todo para dos cosas: saber a qué hora vuelves —que define si pagas peaje en punta— y detectar cuándo la jornada no cabe en el día.</p>
+    <p><b>Qué optimiza y qué no.</b> El orden lo resuelve OSRM usando datos de OpenStreetMap y minimizando el tiempo total. El punto final se mantiene fijo durante la optimización. En modo comercial puedes reordenar a mano cuando una propiedad necesita una hora específica; en modo recreativo las paradas se consideran puntos de paso.</p>
+    <p><b>Las horas de llegada son estimadas.</b> En modo comercial se suma la duración de cada sesión; en modo recreativo no se agrega permanencia en las paradas. La fecha y hora son importantes porque pueden cambiar la tarifa de algunos peajes.</p>
     <p><b>Ida y vuelta.</b> En un circuito con varias paradas, el sentido de la primera salida y el del regreso pueden ser distintos, y la punta de las interurbanas depende del sentido. El cálculo los trata por separado.</p>
     <p><b>Datos separados y versionados.</b> El mapa y el recorrido usan Nominatim y OSRM. Los cruces se detectan con la base geográfica de pórticos; los valores se obtienen del paquete tarifario anual. Cambiar las tarifas no modifica coordenadas.</p>
     <p><b>Ejecución.</b> La versión publicada funciona directamente en GitHub Pages. Para desarrollo local, sirve la carpeta por HTTP para permitir la carga de los datos JSON.</p>
