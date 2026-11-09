@@ -631,9 +631,23 @@ function descripcionCandidatoAvo(p){
 }
 
 
+function direccionAvoDesdeMatriz(p){
+  if(!p||!indiceCatalogo||
+     p.route_id!=="route_americo_vespucio_oriente_avo_i") return "";
+  var rol=indiceCatalogo.avoRoles[p.code];
+  if(!rol) return "";
+  var dirs=Object.keys(rol.directions||{});
+  if(dirs.length!==1) return "";
+  var d=clave(dirs[0]);
+  var pg=d.indexOf("principe de gales");
+  var es=d.indexOf("el salto");
+  if(pg>=0&&es>=0) return pg<es?"sur a norte":"norte a sur";
+  return "";
+}
 function direccionOperacionalPunto(p){
   if(!p) return "";
-  return p.travel_direction||p.direction||p.mop_sentido||"";
+  return p.travel_direction||p.direction||p.mop_sentido||
+    direccionAvoDesdeMatriz(p)||"";
 }
 function direccionEsperada(texto){
   var s=clave(texto||"").replace(/á/g,"a").replace(/é/g,"e").replace(/í/g,"i")
@@ -672,21 +686,24 @@ function puntoAUnaDistancia(geo,indice,pasos,distanciaObjetivo){
   }
   return geo[i];
 }
-function vectorRutaAdaptativo(geo,cerca){
+function vectorRutaAdaptativo(geo,cerca,distanciaObjetivo){
   if(!geo||geo.length<2) return null;
+  distanciaObjetivo=distanciaObjetivo||85;
   var indice=Math.max(0,Math.min(geo.length-1,cerca.idx));
-  var a=puntoAUnaDistancia(geo,indice,-1,85);
-  var b=puntoAUnaDistancia(geo,Math.min(geo.length-1,indice+1),1,85);
+  var a=puntoAUnaDistancia(geo,indice,-1,distanciaObjetivo);
+  var b=puntoAUnaDistancia(
+    geo,Math.min(geo.length-1,indice+1),1,distanciaObjetivo
+  );
   var rad=Math.PI/180,latMedia=(a[0]+b[0])/2*rad;
   var dx=(b[1]-a[1])*Math.cos(latMedia),dy=b[0]-a[0];
   var norma=Math.sqrt(dx*dx+dy*dy);
   if(!norma) return null;
   return [dx/norma,dy/norma];
 }
-function puntajeDireccion(texto,cerca,geo){
+function puntajeDireccion(texto,cerca,geo,distanciaObjetivo){
   var esperada=direccionEsperada(texto);
   if(!esperada) return null;
-  var vector=vectorRutaAdaptativo(geo,cerca);
+  var vector=vectorRutaAdaptativo(geo,cerca,distanciaObjetivo);
   if(!vector) return null;
   return vector[0]*esperada[0]+vector[1]*esperada[1];
 }
@@ -714,11 +731,18 @@ function umbralEspacialPunto(p,tieneDireccion){
   return 32;
 }
 function evaluarCandidatoPunto(p,cerca,geo){
+  var esAvo=p&&p.route_id==="route_americo_vespucio_oriente_avo_i"&&
+    codigoAvoValido(p.code);
   var direccion=direccionOperacionalPunto(p);
   var tieneDireccion=!!direccionEsperada(direccion);
   var umbral=umbralEspacialPunto(p,tieneDireccion);
   var espacial=Math.max(0,1-cerca.dist/umbral);
-  var direccionScore=tieneDireccion?puntajeDireccion(direccion,cerca,geo):null;
+  /* En AVO I se observa un tramo más largo para inferir el sentido, porque
+     el pórtico puede estar sobre una rampa cuya orientación local no coincide
+     con el eje principal de la autopista. */
+  var direccionScore=tieneDireccion
+    ? puntajeDireccion(direccion,cerca,geo,esAvo?260:85)
+    : null;
 
   if(cerca.dist>umbral){
     return {aceptado:false,motivo:"distancia",direccion:direccion,
@@ -729,8 +753,6 @@ function evaluarCandidatoPunto(p,cerca,geo){
       distancia:cerca.dist,umbral:umbral,direccionScore:direccionScore,puntaje:-1};
   }
 
-  var esAvo=p&&p.route_id==="route_americo_vespucio_oriente_avo_i"&&
-    codigoAvoValido(p.code);
   var total=tieneDireccion
     ? 0.58*((direccionScore+1)/2)+0.42*espacial
     : (esAvo?espacial:espacial*0.72);
