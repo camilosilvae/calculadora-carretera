@@ -15,7 +15,13 @@ async function cargarJson(path){
 function cargarScript(path){
   return new Promise(function(resolve,reject){
     var s=document.createElement("script");
-    s.src=asset(path);
+    var u=new URL(asset(path));
+    /* GitHub Pages y el navegador pueden conservar app.js entre despliegues.
+       La aplicación es pequeña y los datos ya se cargan sin caché, así que
+       usamos una marca por carga para garantizar que siempre se ejecute el
+       JavaScript publicado actualmente. */
+    u.searchParams.set("v",String(Date.now()));
+    s.src=u.href;
     s.onload=resolve;
     s.onerror=function(){reject(new Error("No se pudo cargar "+path));};
     document.head.appendChild(s);
