@@ -694,10 +694,19 @@ function umbralEspacialPunto(p,tieneDireccion){
   var autoridad=String(p.gps_source_authority||"").toLowerCase();
   var exacto=Number(p.gps_is_exact)===1||
     /verificada|exact/i.test(String(p.gps_verification_status||""));
+  var esAvo=p&&p.route_id==="route_americo_vespucio_oriente_avo_i"&&
+    codigoAvoValido(p.code);
   if(tieneDireccion){
     if(autoridad==="mop"||exacto) return 95;
     if(autoridad==="usuario_manual"||autoridad==="usuario_mapa") return 105;
     return 80;
+  }
+  /* AVO I se valida después con la matriz oficial entrada–salida. Sus
+     pórticos están en túneles, enlaces y rampas, por lo que la geometría
+     OSRM puede quedar varias decenas de metros del punto publicado. */
+  if(esAvo){
+    if(exacto||autoridad==="usuario_manual"||autoridad==="usuario_mapa") return 90;
+    return 70;
   }
   /* Sin sentido conocido se exige mayor cercanía para evitar una calzada vecina. */
   if(autoridad==="mop"||exacto) return 42;
@@ -720,10 +729,14 @@ function evaluarCandidatoPunto(p,cerca,geo){
       distancia:cerca.dist,umbral:umbral,direccionScore:direccionScore,puntaje:-1};
   }
 
+  var esAvo=p&&p.route_id==="route_americo_vespucio_oriente_avo_i"&&
+    codigoAvoValido(p.code);
   var total=tieneDireccion
     ? 0.58*((direccionScore+1)/2)+0.42*espacial
-    : espacial*0.72;
-  var minimo=tieneDireccion?0.50:0.58;
+    : (esAvo?espacial:espacial*0.72);
+  /* Para AVO I el filtro espacial solo propone candidatos. El cobro se
+     confirma después únicamente si existe un par oficial ordenado en la matriz. */
+  var minimo=tieneDireccion?0.50:(esAvo?0.42:0.58);
 
   return {
     aceptado:total>=minimo,
@@ -1253,12 +1266,22 @@ function cobrosAvoPorTramo(cruces,tramo){
       ];
       if(!viaje) continue;
 
+      var oficialM=Number(viaje.official_distance_km)*1000;
+      var errorDistancia=oficialM>0
+        ? Math.abs(separacion-oficialM)/oficialM
+        : 1;
+      /* El antiguo criterio favorecía simplemente los pares más largos.
+         Ahora se premia el par cuya separación sobre la ruta se parece
+         más a la longitud publicada para ese viaje AVO I. */
+      var ajusteOficial=oficialM>0
+        ? Math.max(0,0.30*(1-Math.min(1,errorDistancia)))
+        : 0;
       var score=(Number(a.puntajeDeteccion)||0)+
-        (Number(b.puntajeDeteccion)||0)+
-        Math.min(0.20,separacion/10000);
+        (Number(b.puntajeDeteccion)||0)+ajusteOficial;
       pares.push({
         entrada:a,salida:b,viaje:viaje,
-        separacion:separacion,score:score
+        separacion:separacion,score:score,
+        distanciaOficialM:oficialM,errorDistancia:errorDistancia
       });
     }
   }
@@ -1303,7 +1326,10 @@ function cobrosAvoPorTramo(cruces,tramo){
     separacionDetectadaM:mejor.separacion,
     avoDetalle:"Entrada "+descripcionCandidatoAvo(mejor.entrada)+
       " · Salida "+descripcionCandidatoAvo(mejor.salida)+
-      " · par oficial validado"
+      " · par oficial validado"+
+      (mejor.distanciaOficialM
+        ?" · distancia oficial "+coma(mejor.distanciaOficialM/1000,2)+" km"
+        :"")
   }]);
 }
 function detectarPeajesCatalogo(geometrias){
@@ -1408,7 +1434,7 @@ function tramoPeajes(tramoIndex,minutos,sentido){
         tipoTarifa:"Pareja entrada–salida pendiente",
         direccion:"",esAvo:true,
         punta:false,monto:0,verificado:false,manual:false,
-        avoAmbiguo:true
+        avoAmbiguo:true,avoMotivo:p.avoMotivo||""
       });
       return;
     }
@@ -1994,6 +2020,7 @@ function renderTramo(titulo,d,color,minutos,etiquetaHora){
     var metadata=[];
     if(l.rutaNombre) metadata.push(l.rutaNombre);
     if(l.direccion) metadata.push(l.direccion);
+    if(l.avoAmbiguo&&l.ruta) metadata.push(l.ruta);
     if(l.horaPaso){
       var etiquetaDia={laboral:"día laboral",sabado:"sábado",domingo:"domingo",festivo:"festivo"}[l.diaTarifario]||l.diaTarifario||"";
       metadata.push("paso estimado "+l.horaPaso+
