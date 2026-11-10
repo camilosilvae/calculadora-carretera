@@ -79,7 +79,8 @@ La aplicación utiliza desde el navegador:
 
 - Leaflet y OpenStreetMap para visualización del mapa.
 - Nominatim para geocodificación.
-- OSRM para ruteo y optimización del orden.
+- OSRM para ruteo, alternativas y optimización del orden.
+- Valhalla para intentar construir rutas que excluyan caminos con peaje.
 - Google Maps para abrir el recorrido planificado.
 
 ## Alcance y mantenimiento
