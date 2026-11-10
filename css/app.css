@@ -370,6 +370,10 @@
   .tabla-alternativas th,.tabla-alternativas td{padding:8px 7px;border-bottom:1px solid var(--z8);text-align:right}
   .tabla-alternativas th:first-child,.tabla-alternativas td:first-child{text-align:left}
   .tabla-alternativas tr.seleccionada{background:var(--z9)}
+  .usar-ruta{border:1px solid var(--z2);background:#fff;color:var(--z0);padding:5px 8px;
+    font:600 10px/1 var(--dato);cursor:pointer;white-space:nowrap}
+  .usar-ruta:hover{background:var(--z8)}
+  .usar-ruta:disabled{border-color:var(--z7);color:var(--z5);cursor:default}
   .ruta-etiquetas{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px}
   .ruta-etiqueta{display:inline-block;padding:2px 5px;background:var(--z8);font-size:9px;
     letter-spacing:.05em;text-transform:uppercase}
