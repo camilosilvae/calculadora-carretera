@@ -570,17 +570,21 @@ async function optimizar(puntos,modo){
     throw new Error("No se pudo armar un circuito con esas paradas.");
   return j;
 }
-/* Circuito respetando el orden dado. */
-async function circuitoFijo(puntos,modo){
+/* Rutas respetando el orden dado. OSRM puede devolver hasta tres
+   alternativas; si no existen, entrega solo la principal. */
+async function circuitosAlternativos(puntos,modo){
   var lista=modo==="base"?puntos.concat([puntos[0]]):puntos.slice();
   var url="https://router.project-osrm.org/route/v1/driving/"+cadena(lista)+
-    "?overview=full&geometries=geojson&steps=true";
+    "?overview=full&geometries=geojson&steps=true&alternatives=3";
   var r=await fetch(url,{headers:CABECERAS_JSON});
   if(!r.ok) throw new Error("El servicio de rutas no respondió.");
   var j=await r.json();
   if(j.code!=="Ok"||!j.routes||!j.routes.length)
     throw new Error("No se encontró una ruta manejable entre esas paradas.");
-  return j.routes[0];
+  return j.routes;
+}
+async function circuitoFijo(puntos,modo){
+  return (await circuitosAlternativos(puntos,modo))[0];
 }
 
 function geometriaDeLeg(leg){
@@ -814,6 +818,9 @@ var base=null;
 var paradas=[];          /* [{lat,lon,etiqueta}] en el orden actual */
 var circuito=null;       /* {km,min,geometria,legs,legGeometrias,peajes} */
 var comparacion=null;    /* referencia previa: {km,min} */
+var rutaPreferencia="rapida"; /* rapida | corta | peajes */
+var alternativasRuta=[];      /* alternativas OSRM evaluadas */
+var alternativaSeleccionada=-1;
 var horaSalida="09:00";
 var selectorHoraAbierto=false;
 var horaPendiente="09:00";
@@ -872,6 +879,9 @@ function cambiarTipoParada(indice,tipo){
 }
 function modoFinValido(valor){
   return ["base","ultima","otra"].indexOf(valor)>=0?valor:"base";
+}
+function rutaPreferenciaValida(valor){
+  return ["rapida","corta","peajes"].indexOf(valor)>=0?valor:"rapida";
 }
 function regresaALaBase(){
   return modoFin==="base";
@@ -1964,6 +1974,77 @@ function actualizarTipoViajeUI(){
     :"Agregar destino";
 }
 
+function actualizarEstrategiaRutaUI(){
+  rutaPreferencia=rutaPreferenciaValida(rutaPreferencia);
+  document.querySelectorAll("[data-ruta-preferencia]").forEach(function(b){
+    var activo=b.getAttribute("data-ruta-preferencia")===rutaPreferencia;
+    b.classList.toggle("activo",activo);
+    b.setAttribute("aria-pressed",activo?"true":"false");
+  });
+  var estadoRuta=$("estrategiaEstado");
+  if(!estadoRuta) return;
+  var textos={
+    rapida:"Se prioriza el menor tiempo de manejo entre las alternativas disponibles.",
+    corta:"Se prioriza la alternativa disponible con menos kilómetros.",
+    peajes:"Se prioriza el menor cobro de peajes confirmado entre las alternativas disponibles."
+  };
+  estadoRuta.textContent=textos[rutaPreferencia];
+  if(alternativasRuta.length===1)
+    estadoRuta.textContent+=" OSRM solo encontró una ruta razonable para este recorrido.";
+  else if(alternativasRuta.length>1)
+    estadoRuta.textContent+=" Se compararon "+alternativasRuta.length+" rutas.";
+}
+
+function renderAlternativasRuta(){
+  var cont=$("alternativasRuta");
+  if(!cont) return;
+  if(!alternativasRuta.length){
+    cont.innerHTML='<p class="nota-panel">Calcula una ruta para comparar alternativas.</p>';
+    return;
+  }
+
+  var minMin=Math.min.apply(null,alternativasRuta.map(function(a){return a.min;}));
+  var minKm=Math.min.apply(null,alternativasRuta.map(function(a){return a.km;}));
+  var seguras=alternativasRuta.filter(function(a){return a.pendientes===0;});
+  var basePeajes=seguras.length?seguras:alternativasRuta;
+  var minPeajes=Math.min.apply(null,basePeajes.map(function(a){return a.peajes;}));
+
+  var filas=alternativasRuta.map(function(a,i){
+    var etiquetas=[];
+    if(Math.abs(a.min-minMin)<0.05) etiquetas.push("más rápida");
+    if(Math.abs(a.km-minKm)<0.05) etiquetas.push("menos km");
+    if(a.pendientes===0&&Math.abs(a.peajes-minPeajes)<1) etiquetas.push("menos peajes");
+    if(i===alternativaSeleccionada) etiquetas.push("en uso");
+    var tags=etiquetas.length
+      ? '<span class="ruta-etiquetas">'+etiquetas.map(function(e){
+          return '<span class="ruta-etiqueta">'+esc(e)+'</span>';
+        }).join("")+'</span>'
+      :"";
+    var peajeTexto=(a.pendientes?"≥ ":"")+pesos(a.peajes);
+    var costoTexto=(a.pendientes?"≥ ":"")+pesos(a.costoDirecto);
+    return '<tr class="'+(i===alternativaSeleccionada?"seleccionada":"")+'">'+
+      '<td><b>Opción '+(i+1)+'</b>'+tags+'</td>'+
+      '<td>'+Math.round(a.min)+' min</td>'+
+      '<td>'+coma(a.km)+' km</td>'+
+      '<td>'+peajeTexto+'</td>'+
+      '<td>'+costoTexto+'</td>'+
+      '<td><button type="button" class="usar-ruta" data-usar-ruta="'+i+'" '+
+        (i===alternativaSeleccionada?'disabled':'')+'>'+
+        (i===alternativaSeleccionada?'En uso':'Usar')+'</button></td>'+
+      '</tr>';
+  }).join("");
+
+  cont.innerHTML='<table class="tabla-alternativas">'+
+    '<thead><tr><th>Ruta</th><th>Tiempo</th><th>Distancia</th><th>Peajes</th><th>Costo directo</th><th></th></tr></thead>'+
+    '<tbody>'+filas+'</tbody></table>'+
+    '<p class="nota-panel">“Menos kilómetros” y “Evitar peajes” comparan las alternativas que OSRM logra generar; no garantizan el mínimo absoluto de toda la red vial.</p>';
+  cont.querySelectorAll("[data-usar-ruta]").forEach(function(b){
+    b.addEventListener("click",function(){
+      aplicarAlternativaRuta(parseInt(b.getAttribute("data-usar-ruta"),10));
+    });
+  });
+}
+
 function renderAtajos(){
   var c=$("atajos"); c.innerHTML="";
   ATAJOS.forEach(function(a){
@@ -2146,7 +2227,8 @@ function renderParadas(){
     b.addEventListener("click",function(){
       paradas.splice(parseInt(b.getAttribute("data-quita"),10),1);
       if(!paradas.length){
-        circuito=null; comparacion=null; render(); guardar(); return;
+        circuito=null; comparacion=null; alternativasRuta=[];
+        alternativaSeleccionada=-1; render(); guardar(); return;
       }
       recalcular(false);
     });
@@ -2375,6 +2457,8 @@ function prepararGoogleMaps(){
 
 function render(){
   actualizarTipoViajeUI();
+  actualizarEstrategiaRutaUI();
+  renderAlternativasRuta();
   renderParadas();
   var c=calcular();
 
@@ -2599,13 +2683,104 @@ function render(){
 }
 
 /* --- Ruteo --- */
+function circuitoDesdeRuta(ruta){
+  return {
+    km:ruta.distance/1000,
+    min:ruta.duration/60,
+    geometria:ruta.geometry.coordinates.map(function(c){return [c[1],c[0]];}),
+    legs:ruta.legs.map(function(l){return l.duration/60;}),
+    legGeometrias:geometriaLegs(ruta),
+    peajes:[],
+    modoFin:modoFin,
+    regresaBase:modoFin==="base"
+  };
+}
+
+function evaluarRutaParaComparar(ruta){
+  var candidato=circuitoDesdeRuta(ruta);
+  var peajes=0,pendientes=0;
+  if(indiceCatalogo){
+    var circuitoAnterior=circuito;
+    var diagnosticoAnterior=diagnosticoDeteccion;
+    try{
+      circuito=candidato;
+      candidato.peajes=detectarPeajesCatalogo(candidato.legGeometrias);
+      var ag=agenda();
+      var cobros=ag.tramos.map(function(t){
+        return tramoPeajes(t.indice,t.salida,t.sentido);
+      });
+      peajes=cobros.reduce(function(total,t){return total+t.total;},0);
+      pendientes=cobros.reduce(function(total,t){return total+t.sinValor;},0);
+    }finally{
+      circuito=circuitoAnterior;
+      diagnosticoDeteccion=diagnosticoAnterior;
+    }
+  }
+  var litros=candidato.km/(num("rendimiento")||1);
+  var costoDirecto=litros*num("precioL")+
+    candidato.km*num("desgaste")+peajes;
+  return {
+    ruta:ruta,km:candidato.km,min:candidato.min,
+    peajes:peajes,pendientes:pendientes,costoDirecto:costoDirecto
+  };
+}
+
+function evaluarAlternativasRuta(rutas){
+  return (rutas||[]).map(evaluarRutaParaComparar);
+}
+
+function aplicarAlternativaRuta(indice){
+  var seleccion=alternativasRuta[indice];
+  if(!seleccion) return;
+  alternativaSeleccionada=indice;
+  circuito=circuitoDesdeRuta(seleccion.ruta);
+  if(indiceCatalogo){
+    circuito.peajes=detectarPeajesCatalogo(circuito.legGeometrias);
+    refrescarResumenCatalogo();
+  }else{
+    circuito.peajes=[];
+  }
+  render();
+  estado("Opción "+(indice+1)+" seleccionada manualmente · "+
+    Math.round(seleccion.min)+" min · "+coma(seleccion.km)+" km · "+
+    (seleccion.pendientes?"peajes desde ":"peajes ")+pesos(seleccion.peajes)+".");
+}
+
+function indiceRutaPreferida(lista,preferencia){
+  if(!lista.length) return -1;
+  var indices=lista.map(function(_,i){return i;});
+  if(preferencia==="corta"){
+    indices.sort(function(a,b){
+      return lista[a].km-lista[b].km||lista[a].min-lista[b].min;
+    });
+    return indices[0];
+  }
+  if(preferencia==="peajes"&&indiceCatalogo){
+    var sinPendientes=indices.filter(function(i){return lista[i].pendientes===0;});
+    var candidatas=sinPendientes.length?sinPendientes:indices;
+    candidatas.sort(function(a,b){
+      if(!sinPendientes.length&&lista[a].pendientes!==lista[b].pendientes)
+        return lista[a].pendientes-lista[b].pendientes;
+      return lista[a].peajes-lista[b].peajes||
+        lista[a].min-lista[b].min||
+        lista[a].km-lista[b].km;
+    });
+    return candidatas[0];
+  }
+  indices.sort(function(a,b){
+    return lista[a].min-lista[b].min||lista[a].km-lista[b].km;
+  });
+  return indices[0];
+}
+
 async function recalcular(optimizar_orden){
   if(!base||!paradas.length) return;
   normalizarParadas();
   modoFin=modoFinValido(modoFin);
 
   if(!finalRutaValido()){
-    circuito=null; comparacion=null; render();
+    circuito=null; comparacion=null; alternativasRuta=[];
+    alternativaSeleccionada=-1; render();
     if(modoFin==="otra")
       avisar("Fija la dirección final antes de calcular la ruta.",false);
     else
@@ -2614,18 +2789,24 @@ async function recalcular(optimizar_orden){
   }
 
   var puntos=puntosParaRuta();
-  avisar(optimizar_orden?"Buscando el mejor orden…":
-    (modoFin==="base"?"Recalculando el circuito…":"Recalculando la ruta con final fijo…"),false);
+  var etiquetaEstrategia={
+    rapida:"menor tiempo",corta:"menos kilómetros",peajes:"menos peajes"
+  }[rutaPreferencia]||"menor tiempo";
+  avisar(optimizar_orden?"Buscando el mejor orden y "+etiquetaEstrategia+"…":
+    "Comparando alternativas para priorizar "+etiquetaEstrategia+"…",false);
   $("btnBuscar").disabled=true;
 
   try{
-    var fijo=await circuitoFijo(puntos,modoFin);
-    var refKm=fijo.distance/1000,refMin=fijo.duration/60;
-    var elegido=fijo,legs=fijo.legs.map(function(l){return l.duration/60;});
+    var rutasIniciales=await circuitosAlternativos(puntos,modoFin);
+    var fijaRapida=rutasIniciales.slice().sort(function(a,b){
+      return a.duration-b.duration||a.distance-b.distance;
+    })[0];
+    var refKm=fijaRapida.distance/1000,refMin=fijaRapida.duration/60;
+    var rutasCandidatas=rutasIniciales;
 
     if(optimizar_orden&&cantidadParadasOptimizables()>=2){
       var paradasAntes=paradas.slice();
-      var trip=await optimizar(puntos,modoFin),t=trip.trips[0];
+      var trip=await optimizar(puntos,modoFin);
 
       var ultimoIndiceEntrada=puntos.length-1;
       var indicesMovibles=[];
@@ -2646,24 +2827,22 @@ async function recalcular(optimizar_orden){
         return paradasAntes[indiceEntrada-1];
       });
 
-      if(modoFin==="ultima"){
+      if(modoFin==="ultima")
         ordenadas.push(paradasAntes[paradasAntes.length-1]);
-      }
       paradas=ordenadas;
-      elegido=t;
-      legs=t.legs.map(function(l){return l.duration/60;});
+      puntos=puntosParaRuta();
+      rutasCandidatas=await circuitosAlternativos(puntos,modoFin);
     }
 
-    circuito={
-      km:elegido.distance/1000,
-      min:elegido.duration/60,
-      geometria:elegido.geometry.coordinates.map(function(c){return [c[1],c[0]];}),
-      legs:legs,
-      legGeometrias:geometriaLegs(elegido),
-      peajes:[],
-      modoFin:modoFin,
-      regresaBase:modoFin==="base"
-    };
+    alternativasRuta=evaluarAlternativasRuta(rutasCandidatas);
+    alternativaSeleccionada=indiceRutaPreferida(
+      alternativasRuta,rutaPreferencia
+    );
+    if(alternativaSeleccionada<0)
+      throw new Error("No se encontró una alternativa utilizable.");
+    var elegido=alternativasRuta[alternativaSeleccionada].ruta;
+
+    circuito=circuitoDesdeRuta(elegido);
     comparacion={km:refKm,min:refMin};
     render();
     avisar("",false);
@@ -2673,10 +2852,13 @@ async function recalcular(optimizar_orden){
       circuito.peajes=detectarPeajesCatalogo(circuito.legGeometrias);
       render();
       refrescarResumenCatalogo();
-      estado("Catálogo nacional: "+circuito.peajes.length+
-        " cruces o trayectos aceptados · "+diagnosticoDeteccion.descartados.length+
-        " candidatos descartados · "+diagnosticoDeteccion.ambiguos.length+
-        " cruces ambiguos no cobrados.");
+      estado("Ruta "+(alternativaSeleccionada+1)+" de "+alternativasRuta.length+
+        " · preferencia "+({
+          rapida:"más rápida",corta:"menos kilómetros",peajes:"evitar peajes"
+        }[rutaPreferencia]||"más rápida")+
+        " · "+circuito.peajes.length+" cruces o trayectos aceptados · "+
+        diagnosticoDeteccion.descartados.length+" candidatos descartados · "+
+        diagnosticoDeteccion.ambiguos.length+" cruces ambiguos no cobrados.");
     }else{
       circuito.peajes=[];
       render();
@@ -2774,7 +2956,7 @@ function guardar(){
     var cfg={
       horaSalida:horaSalida,fechaSalida:$("fecha").value,campos:{},paradas:paradas,
       tipoViaje:tipoViaje,modoFin:modoFin,destinoFinal:destinoFinal,
-      tipoNuevaParada:tipoNuevaParada
+      tipoNuevaParada:tipoNuevaParada,rutaPreferencia:rutaPreferencia
     };
     CAMPOS.forEach(function(k){ cfg.campos[k]=$(k).value; });
     almacen.escribir("config-foto",JSON.stringify(cfg));
@@ -2806,6 +2988,21 @@ document.querySelectorAll("[data-tipo-viaje]").forEach(function(b){
     actualizarTipoViajeUI();
     render();
     guardar();
+  });
+});
+
+document.querySelectorAll("[data-ruta-preferencia]").forEach(function(b){
+  b.addEventListener("click",function(){
+    var nueva=rutaPreferenciaValida(b.getAttribute("data-ruta-preferencia"));
+    if(nueva===rutaPreferencia){
+      actualizarEstrategiaRutaUI();
+      return;
+    }
+    rutaPreferencia=nueva;
+    actualizarEstrategiaRutaUI();
+    guardar();
+    if(base&&paradas.length&&finalRutaValido()) recalcular(false);
+    else render();
   });
 });
 
@@ -2885,6 +3082,8 @@ $("btnActualizarCalculo").addEventListener("click",function(){
       if(cfg.horaSalida&&hora24Valida(cfg.horaSalida)) horaSalida=cfg.horaSalida;
       if(cfg.fechaSalida&&fechaIsoValida(cfg.fechaSalida)) $("fecha").value=cfg.fechaSalida;
       if(cfg.tipoViaje) tipoViaje=tipoViajeValido(cfg.tipoViaje);
+      if(cfg.rutaPreferencia)
+        rutaPreferencia=rutaPreferenciaValida(cfg.rutaPreferencia);
       if(cfg.modoFin) modoFin=modoFinValido(cfg.modoFin);
       if(cfg.destinoFinal&&isFinite(Number(cfg.destinoFinal.lat))&&
           isFinite(Number(cfg.destinoFinal.lon)))

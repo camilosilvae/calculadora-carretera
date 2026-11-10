@@ -353,6 +353,35 @@
     .tipo-parada{flex-basis:100%;margin-left:74px}
   }
 
+  .estrategia-ruta{border:1px solid var(--z7);background:#fff;padding:15px;
+    margin:0 0 14px;border-radius:2px}
+  .estrategia-opciones{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .estrategia-opcion{min-height:70px;border:1px solid var(--z7);background:#fff;color:var(--z0);
+    padding:10px 11px;text-align:left;border-radius:2px;cursor:pointer}
+  .estrategia-opcion:hover{border-color:var(--z2)}
+  .estrategia-opcion.activo{border-color:var(--z0);box-shadow:inset 0 0 0 1px var(--z0);
+    background:var(--z9)}
+  .estrategia-opcion b{display:block;font:600 12px/1.25 var(--dato)}
+  .estrategia-opcion span{display:block;margin-top:4px;font-size:11px;line-height:1.4;color:var(--z5)}
+  .estrategia-estado{margin:10px 0 0;font:11.5px/1.45 var(--dato);color:var(--z5)}
+  .comparador-rutas{margin-top:10px;border-top:1px solid var(--z8);padding-top:10px}
+  .comparador-rutas summary{cursor:pointer;font:600 11px/1.3 var(--dato);letter-spacing:.05em}
+  .tabla-alternativas{width:100%;border-collapse:collapse;margin-top:10px;font:11.5px/1.35 var(--dato)}
+  .tabla-alternativas th,.tabla-alternativas td{padding:8px 7px;border-bottom:1px solid var(--z8);text-align:right}
+  .tabla-alternativas th:first-child,.tabla-alternativas td:first-child{text-align:left}
+  .tabla-alternativas tr.seleccionada{background:var(--z9)}
+  .usar-ruta{border:1px solid var(--z2);background:#fff;color:var(--z0);padding:5px 8px;
+    font:600 10px/1 var(--dato);cursor:pointer;white-space:nowrap}
+  .usar-ruta:hover{background:var(--z8)}
+  .usar-ruta:disabled{border-color:var(--z7);color:var(--z5);cursor:default}
+  .ruta-etiquetas{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px}
+  .ruta-etiqueta{display:inline-block;padding:2px 5px;background:var(--z8);font-size:9px;
+    letter-spacing:.05em;text-transform:uppercase}
+  @media(max-width:760px){
+    .estrategia-opciones{grid-template-columns:1fr}
+    .tabla-alternativas{font-size:10.5px}
+  }
+
   .barra-orden{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
   .ahorro{font-size:13px;padding:9px 13px;border-left:3px solid var(--ganancia);
     background:rgba(62,107,74,.1);flex:1;min-width:230px}
