@@ -1204,6 +1204,108 @@ function candidatoAvoUnicoPorCodigo(cruces){
   return Object.keys(porCodigo).map(function(k){return porCodigo[k];})
     .sort(function(a,b){return a.progresoRutaM-b.progresoRutaM;});
 }
+function recuperarExtremoAvoDesdeMatriz(cruces,tramo,geo){
+  var candidatos=candidatoAvoUnicoPorCodigo(cruces);
+  if(!indiceCatalogo||!geo||geo.length<2||!candidatos.length) return cruces;
+
+  var origenes=candidatos.filter(function(p){
+    var rol=indiceCatalogo.avoRoles[p.codigo];
+    return rol&&rol.origin;
+  });
+  var salidas=candidatos.filter(function(p){
+    var rol=indiceCatalogo.avoRoles[p.codigo];
+    return rol&&rol.destination;
+  });
+
+  /* Solo se recupera un extremo cuando el otro ya está claramente detectado.
+     Así evitamos crear un viaje AVO completo a partir de dos aproximaciones. */
+  var ancla=null,buscarSalida=false;
+  if(origenes.length===1&&salidas.length===0){
+    ancla=origenes[0]; buscarSalida=true;
+  }else if(salidas.length===1&&origenes.length===0){
+    ancla=salidas[0]; buscarSalida=false;
+  }else{
+    return cruces;
+  }
+
+  var opciones=[];
+  Object.keys(indiceCatalogo.viajes).forEach(function(claveViaje){
+    var viaje=indiceCatalogo.viajes[claveViaje];
+    if(!viaje||viaje.route_id!==ancla.route_id) return;
+    if(buscarSalida&&viaje.origin_code!==ancla.codigo) return;
+    if(!buscarSalida&&viaje.destination_code!==ancla.codigo) return;
+
+    var codigoFaltante=buscarSalida?viaje.destination_code:viaje.origin_code;
+    if(codigoFaltante==="P110") return;
+    var punto=(indiceCatalogo.puntos||[]).find(function(p){
+      return p.route_id===ancla.route_id&&p.code===codigoFaltante;
+    });
+    if(!punto) return;
+
+    var cerca=puntoMasCercano(
+      [Number(punto.latitude),Number(punto.longitude)],geo
+    );
+    var progreso=progresoRutaMetros(geo,cerca);
+    var separacion=buscarSalida
+      ? progreso-ancla.progresoRutaM
+      : ancla.progresoRutaM-progreso;
+    if(separacion<120) return;
+
+    /* Este segundo pase es deliberadamente más amplio que el detector normal.
+       Solo considera destinos/orígenes que existen en la matriz oficial para
+       el extremo ya detectado. */
+    var maxDist=240;
+    if(cerca.dist>maxDist) return;
+
+    var oficialM=Number(viaje.official_distance_km)*1000;
+    var errorDistancia=oficialM>0
+      ? Math.abs(separacion-oficialM)/oficialM
+      : 1;
+    if(oficialM>0&&errorDistancia>0.45) return;
+
+    var evaluacion=evaluarCandidatoPunto(punto,cerca,geo);
+    var cobro=crearCobroPunto(
+      punto,tramo,cerca,geo,{
+        direccionScore:evaluacion.direccionScore,
+        puntaje:Math.max(0.46,1-(cerca.dist/maxDist))*0.70+
+          Math.max(0,1-errorDistancia)*0.30,
+        confianza:"recuperada"
+      }
+    );
+    cobro.recuperadoAvo=true;
+    cobro.reglaSeleccionAvo="matriz_oficial_y_distancia";
+    opciones.push({
+      cobro:cobro,viaje:viaje,
+      distanciaRuta:cerca.dist,
+      separacion:separacion,
+      errorDistancia:errorDistancia,
+      score:(cerca.dist/maxDist)*0.60+errorDistancia*0.40
+    });
+  });
+
+  if(!opciones.length) return cruces;
+  opciones.sort(function(a,b){ return a.score-b.score; });
+  var mejor=opciones[0],segundo=opciones[1];
+
+  /* Si dos salidas posibles quedan prácticamente empatadas, se conserva el
+     estado pendiente. Es preferible no cobrar a escoger un acceso dudoso. */
+  if(segundo&&Math.abs(segundo.score-mejor.score)<0.10) return cruces;
+
+  diagnosticoDeteccion.aceptados.push({
+    point_id:mejor.cobro.point_id,
+    route_id:mejor.cobro.route_id,
+    codigo:mejor.cobro.codigo,
+    confianza:"recuperada",
+    puntaje:mejor.cobro.puntajeDeteccion,
+    motivo:"avo_extremo_recuperado_desde_matriz",
+    ancla:ancla.codigo,
+    distancia:mejor.distanciaRuta,
+    errorDistancia:mejor.errorDistancia
+  });
+  return cruces.concat([mejor.cobro]).sort(function(a,b){
+    return a.progresoRutaM-b.progresoRutaM;
+  });
+}
 function crearAvoAmbiguo(cruces,tramo,motivo){
   var candidatos=candidatoAvoUnicoPorCodigo(cruces);
   if(!candidatos.length) return [];
@@ -1349,6 +1451,8 @@ function cobrosAvoPorTramo(cruces,tramo){
     avoDetalle:"Entrada "+descripcionCandidatoAvo(mejor.entrada)+
       " · Salida "+descripcionCandidatoAvo(mejor.salida)+
       " · par oficial validado"+
+      ((mejor.entrada.recuperadoAvo||mejor.salida.recuperadoAvo)
+        ?" · extremo recuperado con matriz oficial":"")+
       (mejor.distanciaOficialM
         ?" · distancia oficial "+coma(mejor.distanciaOficialM/1000,2)+" km"
         :"")
@@ -1398,6 +1502,7 @@ function detectarPeajesCatalogo(geometrias){
     comunes=seleccionarMejorPorCruce(comunes);
     comunes=depurarCrucesSinDireccion(comunes);
     avo.sort(function(a,b){return a.progresoRutaM-b.progresoRutaM;});
+    avo=recuperarExtremoAvoDesdeMatriz(avo,ti,geo);
     porTramo[ti]={comunes:comunes,avo:avo};
   });
 
