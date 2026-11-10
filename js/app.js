@@ -1204,6 +1204,23 @@ function candidatoAvoUnicoPorCodigo(cruces){
   return Object.keys(porCodigo).map(function(k){return porCodigo[k];})
     .sort(function(a,b){return a.progresoRutaM-b.progresoRutaM;});
 }
+function puntoEnProgresoRuta(geo,objetivoM){
+  if(!geo||!geo.length) return null;
+  objetivoM=Math.max(0,Number(objetivoM)||0);
+  var acumulado=0;
+  for(var i=1;i<geo.length;i++){
+    var seg=haversine(geo[i-1],geo[i]);
+    if(acumulado+seg>=objetivoM){
+      var t=seg>0?(objetivoM-acumulado)/seg:0;
+      return [
+        geo[i-1][0]+(geo[i][0]-geo[i-1][0])*t,
+        geo[i-1][1]+(geo[i][1]-geo[i-1][1])*t
+      ];
+    }
+    acumulado+=seg;
+  }
+  return geo[geo.length-1].slice();
+}
 function recuperarExtremoAvoDesdeMatriz(cruces,tramo,geo){
   var candidatos=candidatoAvoUnicoPorCodigo(cruces);
   if(!indiceCatalogo||!geo||geo.length<2||!candidatos.length) return cruces;
@@ -1218,7 +1235,7 @@ function recuperarExtremoAvoDesdeMatriz(cruces,tramo,geo){
   });
 
   /* Solo se recupera un extremo cuando el otro ya está claramente detectado.
-     Así evitamos crear un viaje AVO completo a partir de dos aproximaciones. */
+     Nunca se inventan simultáneamente una entrada y una salida. */
   var ancla=null,buscarSalida=false;
   if(origenes.length===1&&salidas.length===0){
     ancla=origenes[0]; buscarSalida=true;
@@ -1228,7 +1245,8 @@ function recuperarExtremoAvoDesdeMatriz(cruces,tramo,geo){
     return cruces;
   }
 
-  var opciones=[];
+  var longitudRuta=longitudGeometriaMetros(geo);
+  var opciones=[],evaluadas=[];
   Object.keys(indiceCatalogo.viajes).forEach(function(claveViaje){
     var viaje=indiceCatalogo.viajes[claveViaje];
     if(!viaje||viaje.route_id!==ancla.route_id) return;
@@ -1242,6 +1260,20 @@ function recuperarExtremoAvoDesdeMatriz(cruces,tramo,geo){
     });
     if(!punto) return;
 
+    var oficialM=Number(viaje.official_distance_km)*1000;
+    if(!(oficialM>0)) return;
+
+    /* La distancia oficial define dónde debería aparecer el otro extremo a lo
+       largo de la ruta. En túneles esto es más fiable que exigir coincidencia
+       GPS directa con la geometría OSRM. */
+    var progresoEsperado=ancla.progresoRutaM+(buscarSalida?oficialM:-oficialM);
+    if(progresoEsperado<-350||progresoEsperado>longitudRuta+350) return;
+    progresoEsperado=Math.max(0,Math.min(longitudRuta,progresoEsperado));
+    var esperado=puntoEnProgresoRuta(geo,progresoEsperado);
+    var distanciaEsperada=esperado
+      ? haversine([Number(punto.latitude),Number(punto.longitude)],esperado)
+      : Infinity;
+
     var cerca=puntoMasCercano(
       [Number(punto.latitude),Number(punto.longitude)],geo
     );
@@ -1249,47 +1281,64 @@ function recuperarExtremoAvoDesdeMatriz(cruces,tramo,geo){
     var separacion=buscarSalida
       ? progreso-ancla.progresoRutaM
       : ancla.progresoRutaM-progreso;
-    if(separacion<120) return;
-
-    /* Este segundo pase es deliberadamente más amplio que el detector normal.
-       Solo considera destinos/orígenes que existen en la matriz oficial para
-       el extremo ya detectado. */
-    var maxDist=240;
-    if(cerca.dist>maxDist) return;
-
-    var oficialM=Number(viaje.official_distance_km)*1000;
-    var errorDistancia=oficialM>0
+    var errorDistancia=separacion>0
       ? Math.abs(separacion-oficialM)/oficialM
-      : 1;
-    if(oficialM>0&&errorDistancia>0.45) return;
+      : 1.5;
+
+    var score=
+      Math.min(2,distanciaEsperada/900)*0.55+
+      Math.min(2,cerca.dist/700)*0.15+
+      Math.min(2,errorDistancia/0.75)*0.30;
+
+    evaluadas.push({
+      codigo:codigoFaltante,
+      distanciaEsperada:distanciaEsperada,
+      distanciaRuta:cerca.dist,
+      errorDistancia:errorDistancia,
+      score:score
+    });
+
+    /* Filtros de seguridad amplios: el candidato debe seguir teniendo
+       coherencia geográfica y longitudinal con el viaje oficial. */
+    if(distanciaEsperada>1600||cerca.dist>1100||errorDistancia>0.95) return;
 
     var evaluacion=evaluarCandidatoPunto(punto,cerca,geo);
     var cobro=crearCobroPunto(
       punto,tramo,cerca,geo,{
         direccionScore:evaluacion.direccionScore,
-        puntaje:Math.max(0.46,1-(cerca.dist/maxDist))*0.70+
-          Math.max(0,1-errorDistancia)*0.30,
+        puntaje:Math.max(0.45,1-Math.min(1,score/1.5)),
         confianza:"recuperada"
       }
     );
     cobro.recuperadoAvo=true;
-    cobro.reglaSeleccionAvo="matriz_oficial_y_distancia";
+    cobro.reglaSeleccionAvo="matriz_oficial_distancia_longitudinal";
     opciones.push({
       cobro:cobro,viaje:viaje,
+      distanciaEsperada:distanciaEsperada,
       distanciaRuta:cerca.dist,
       separacion:separacion,
       errorDistancia:errorDistancia,
-      score:(cerca.dist/maxDist)*0.60+errorDistancia*0.40
+      score:score
     });
   });
+
+  evaluadas.sort(function(a,b){return a.score-b.score;});
+  var resumen=evaluadas.slice(0,4).map(function(o){
+    return o.codigo+" (Δ oficial "+Math.round(o.errorDistancia*100)+
+      "% · eje "+Math.round(o.distanciaEsperada)+" m)";
+  }).join(", ");
+  if(resumen) ancla.avoRecuperacionDetalle="Salidas evaluadas: "+resumen;
 
   if(!opciones.length) return cruces;
   opciones.sort(function(a,b){ return a.score-b.score; });
   var mejor=opciones[0],segundo=opciones[1];
 
-  /* Si dos salidas posibles quedan prácticamente empatadas, se conserva el
-     estado pendiente. Es preferible no cobrar a escoger un acceso dudoso. */
-  if(segundo&&Math.abs(segundo.score-mejor.score)<0.10) return cruces;
+  /* Exigimos una ventaja clara. Si dos pares oficiales explican la ruta casi
+     igual de bien, no se aplica cobro automático. */
+  var ventaja=segundo?segundo.score-mejor.score:Infinity;
+  var evidenciaFuerte=
+    mejor.distanciaEsperada<=500&&mejor.errorDistancia<=0.35;
+  if(segundo&&ventaja<0.14&&!evidenciaFuerte) return cruces;
 
   diagnosticoDeteccion.aceptados.push({
     point_id:mejor.cobro.point_id,
@@ -1297,9 +1346,10 @@ function recuperarExtremoAvoDesdeMatriz(cruces,tramo,geo){
     codigo:mejor.cobro.codigo,
     confianza:"recuperada",
     puntaje:mejor.cobro.puntajeDeteccion,
-    motivo:"avo_extremo_recuperado_desde_matriz",
+    motivo:"avo_extremo_recuperado_distancia_oficial",
     ancla:ancla.codigo,
-    distancia:mejor.distanciaRuta,
+    distanciaEsperada:mejor.distanciaEsperada,
+    distanciaRuta:mejor.distanciaRuta,
     errorDistancia:mejor.errorDistancia
   });
   return cruces.concat([mejor.cobro]).sort(function(a,b){
@@ -1324,6 +1374,10 @@ function crearAvoAmbiguo(cruces,tramo,motivo){
   if(salidas.length)
     detalle.push("Salidas candidatas: "+salidas.map(descripcionCandidatoAvo).join(", "));
   else detalle.push("Salida no detectada");
+  var diagnosticoRecuperacion=candidatos.map(function(p){
+    return p.avoRecuperacionDetalle||"";
+  }).filter(Boolean)[0];
+  if(diagnosticoRecuperacion) detalle.push(diagnosticoRecuperacion);
 
   diagnosticoDeteccion.ambiguos.push({
     route_id:"route_americo_vespucio_oriente_avo_i",
