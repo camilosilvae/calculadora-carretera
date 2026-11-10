@@ -631,6 +631,27 @@ function descripcionCandidatoAvo(p){
 }
 
 
+function sentidosAvoPunto(p){
+  if(!p||!Array.isArray(p.avo_senses)) return [];
+  return p.avo_senses.filter(function(s){
+    return s==="norte"||s==="sur";
+  });
+}
+function direccionAvoExplicita(p){
+  var sentidos=sentidosAvoPunto(p);
+  if(sentidos.length!==1) return "";
+  return sentidos[0]==="norte"?"sur a norte":"norte a sur";
+}
+function sentidosAvoComunes(a,b){
+  var sa=sentidosAvoPunto(a),sb=sentidosAvoPunto(b);
+  if(!sa.length||!sb.length) return [];
+  return sa.filter(function(s){return sb.indexOf(s)>=0;});
+}
+function etiquetaSentidoAvoPar(a,b){
+  var comunes=sentidosAvoComunes(a,b);
+  if(comunes.length!==1) return "";
+  return "Sentido "+(comunes[0]==="norte"?"Norte":"Sur");
+}
 function direccionAvoDesdeMatriz(p){
   if(!p||!indiceCatalogo||
      p.route_id!=="route_americo_vespucio_oriente_avo_i") return "";
@@ -647,7 +668,7 @@ function direccionAvoDesdeMatriz(p){
 function direccionOperacionalPunto(p){
   if(!p) return "";
   return p.travel_direction||p.direction||p.mop_sentido||
-    direccionAvoDesdeMatriz(p)||"";
+    direccionAvoExplicita(p)||direccionAvoDesdeMatriz(p)||"";
 }
 function direccionEsperada(texto){
   var s=clave(texto||"").replace(/á/g,"a").replace(/é/g,"e").replace(/í/g,"i")
@@ -1068,6 +1089,8 @@ function crearCobroPunto(p,tramo,cerca,geo,evaluacion){
     tramo:tramo,posicion:cerca.idx+cerca.t,distanciaRuta:cerca.dist,
     progresoRutaM:progresoRutaMetros(geo,cerca),
     reference:p.reference||"",
+    avo_senses:sentidosAvoPunto(p).slice(),
+    avo_direction_source:p.avo_direction_source||"",
     tariff_group_point_id:p.tariff_group_point_id||null
   };
 }
@@ -1259,6 +1282,11 @@ function recuperarExtremoAvoDesdeMatriz(cruces,tramo,geo){
       return p.route_id===ancla.route_id&&p.code===codigoFaltante;
     });
     if(!punto) return;
+
+    var sentidosAncla=sentidosAvoPunto(ancla);
+    var sentidosPunto=sentidosAvoPunto(punto);
+    if(sentidosAncla.length===1&&sentidosPunto.length&&
+       sentidosPunto.indexOf(sentidosAncla[0])<0) return;
 
     var oficialM=Number(viaje.official_distance_km)*1000;
     if(!(oficialM>0)) return;
@@ -1456,6 +1484,10 @@ function cobrosAvoPorTramo(cruces,tramo){
       var separacion=b.progresoRutaM-a.progresoRutaM;
       if(separacion<120) continue;
 
+      var sentidosA=sentidosAvoPunto(a),sentidosB=sentidosAvoPunto(b);
+      if(sentidosA.length&&sentidosB.length&&
+         !sentidosAvoComunes(a,b).length) continue;
+
       var viaje=indiceCatalogo.viajes[
         a.route_id+"|"+a.codigo+"|"+b.codigo
       ];
@@ -1519,7 +1551,10 @@ function cobrosAvoPorTramo(cruces,tramo){
     filasTarifa:filas,direccion:mejor.viaje.direction||"",
     entrada:mejor.entrada,salida:mejor.salida,
     separacionDetectadaM:mejor.separacion,
-    avoDetalle:"Entrada "+descripcionCandidatoAvo(mejor.entrada)+
+    sentidoAvo:etiquetaSentidoAvoPar(mejor.entrada,mejor.salida),
+    avoDetalle:(etiquetaSentidoAvoPar(mejor.entrada,mejor.salida)
+        ? etiquetaSentidoAvoPar(mejor.entrada,mejor.salida)+" · ":"")+
+      "Entrada "+descripcionCandidatoAvo(mejor.entrada)+
       " · Salida "+descripcionCandidatoAvo(mejor.salida)+
       " · par oficial validado"+
       ((mejor.entrada.recuperadoAvo||mejor.salida.recuperadoAvo)

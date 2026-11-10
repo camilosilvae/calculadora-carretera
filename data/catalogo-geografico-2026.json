@@ -16,7 +16,9 @@
     "multi_candidate_crossing_clusters": 41,
     "matching_model": "distance_direction_cluster_confidence",
     "cluster_resolution": "direction_first_exclusive_or_ambiguous",
-    "adjacent_opposite_gantry_policy": "Seleccionar por sentido; si no es posible distinguir la calzada, no cobrar automáticamente."
+    "adjacent_opposite_gantry_policy": "Seleccionar por sentido; si no es posible distinguir la calzada, no cobrar automáticamente.",
+    "avo_i_direction_model": "explicit_north_south_membership_v1",
+    "avo_i_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
   },
   "routes": [
     {
@@ -1007,7 +1009,11 @@
       "direction_status": "unknown",
       "crossing_signature": "bilbao",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p101",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "norte"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p102",
@@ -1046,7 +1052,11 @@
       "direction_status": "unknown",
       "crossing_signature": "martin de zamora",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p102",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "norte"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p103",
@@ -1085,7 +1095,12 @@
       "direction_status": "unknown",
       "crossing_signature": "los militares",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p103",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "norte",
+        "sur"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p104",
@@ -1124,7 +1139,11 @@
       "direction_status": "unknown",
       "crossing_signature": "presidente riesco",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p104",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "norte"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p105",
@@ -1163,7 +1182,11 @@
       "direction_status": "unknown",
       "crossing_signature": "salida kennedy oriente",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p105",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "norte"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p106",
@@ -1202,7 +1225,11 @@
       "direction_status": "unknown",
       "crossing_signature": "salida kennedy poniente",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p106",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "norte"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p107",
@@ -1241,7 +1268,12 @@
       "direction_status": "unknown",
       "crossing_signature": "kennedy|vespucio",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p107",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "norte",
+        "sur"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p108",
@@ -1280,7 +1312,11 @@
       "direction_status": "unknown",
       "crossing_signature": "costanera norte nororiente",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p108",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "norte"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p109",
@@ -1319,7 +1355,11 @@
       "direction_status": "unknown",
       "crossing_signature": "pte centenario",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p109",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "norte"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p110",
@@ -1397,7 +1437,11 @@
       "direction_status": "unknown",
       "crossing_signature": "cerro colorado",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p111",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "norte"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p201",
@@ -1436,7 +1480,11 @@
       "direction_status": "unknown",
       "crossing_signature": "c empresarial|el salto",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p201",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "sur"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p202",
@@ -1475,7 +1523,11 @@
       "direction_status": "unknown",
       "crossing_signature": "viaducto",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p202",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "sur"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p203",
@@ -1514,7 +1566,11 @@
       "direction_status": "unknown",
       "crossing_signature": "costanera norte oriente",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p203",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "sur"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p204",
@@ -1553,7 +1609,11 @@
       "direction_status": "unknown",
       "crossing_signature": "salida av vitacura",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p204",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "sur"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p205",
@@ -1592,7 +1652,11 @@
       "direction_status": "unknown",
       "crossing_signature": "vitacura",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p205",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "sur"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p206",
@@ -1631,7 +1695,11 @@
       "direction_status": "unknown",
       "crossing_signature": "kennedy|vespucio sur",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p206",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "sur"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p209",
@@ -1670,7 +1738,11 @@
       "direction_status": "unknown",
       "crossing_signature": "cristobal colon",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p209",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "sur"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p210",
@@ -1709,7 +1781,11 @@
       "direction_status": "unknown",
       "crossing_signature": "isabel la catolica",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p210",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "sur"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p211",
@@ -1748,7 +1824,11 @@
       "direction_status": "unknown",
       "crossing_signature": "tobalaba",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p211",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "sur"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__p212",
@@ -1787,7 +1867,11 @@
       "direction_status": "unknown",
       "crossing_signature": "costanera sur",
       "crossing_cluster_id": "route_americo_vespucio_oriente_avo_i__p212",
-      "crossing_cluster_size": 1
+      "crossing_cluster_size": 1,
+      "avo_senses": [
+        "sur"
+      ],
+      "avo_direction_source": "tabla_porticos_sentido_norte_sur_2026-11-10"
     },
     {
       "point_id": "route_americo_vespucio_oriente_avo_i__pase_diario",
