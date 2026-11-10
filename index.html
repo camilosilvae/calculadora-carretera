@@ -91,6 +91,28 @@
     <p class="fin-estado" id="finEstado">El recorrido volverá al punto de salida.</p>
   </section>
 
+  <section class="estrategia-ruta" aria-label="Preferencia de ruta">
+    <p class="fin-titulo">¿Qué quieres priorizar?</p>
+    <div class="estrategia-opciones" role="group" aria-label="Preferencia de ruta">
+      <button type="button" class="estrategia-opcion activo" data-ruta-preferencia="rapida" aria-pressed="true">
+        <b>Más rápida</b><span>Prioriza menor tiempo de manejo.</span>
+      </button>
+      <button type="button" class="estrategia-opcion" data-ruta-preferencia="corta" aria-pressed="false">
+        <b>Menos kilómetros</b><span>Elige la alternativa disponible de menor distancia.</span>
+      </button>
+      <button type="button" class="estrategia-opcion" data-ruta-preferencia="peajes" aria-pressed="false">
+        <b>Evitar peajes</b><span>Prioriza el menor cobro detectado entre alternativas.</span>
+      </button>
+    </div>
+    <p class="estrategia-estado" id="estrategiaEstado">Se usará la alternativa más rápida disponible.</p>
+    <details class="comparador-rutas" id="comparadorRutas">
+      <summary>Comparar opciones disponibles</summary>
+      <div id="alternativasRuta">
+        <p class="nota-panel">Calcula una ruta para comparar alternativas.</p>
+      </div>
+    </details>
+  </section>
+
   <div class="barra-orden" id="barraOrden"></div>
 
   <div class="opciones" id="opciones"></div>
