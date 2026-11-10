@@ -587,6 +587,47 @@ async function circuitoFijo(puntos,modo){
   return (await circuitosAlternativos(puntos,modo))[0];
 }
 
+function listaPuntosRuta(puntos,modo){
+  return modo==="base"?puntos.concat([puntos[0]]):puntos.slice();
+}
+async function rutaValhallaSinPeajes(puntos,modo,puntosExcluidos){
+  var payload={
+    locations:listaPuntosRuta(puntos,modo).map(function(p){
+      return {lat:Number(p[0]),lon:Number(p[1]),type:"break"};
+    }),
+    costing:"auto",
+    costing_options:{auto:{exclude_tolls:true}},
+    format:"osrm",
+    shape_format:"geojson",
+    units:"kilometers"
+  };
+  if(Array.isArray(puntosExcluidos)&&puntosExcluidos.length){
+    payload.exclude_locations=puntosExcluidos.slice(0,24).map(function(p){
+      return {lat:Number(p.lat),lon:Number(p.lon)};
+    });
+  }
+
+  var r=await fetch("https://valhalla1.openstreetmap.de/route",{
+    method:"POST",
+    headers:{
+      "Accept":"application/json",
+      "Content-Type":"application/json",
+      "X-Client-Id":"camilosilvae.github.io-calculadora-carretera"
+    },
+    body:JSON.stringify(payload)
+  });
+  if(!r.ok)
+    throw new Error("El servicio para evitar peajes no respondió.");
+  var j=await r.json();
+  if(j.code!=="Ok"||!j.routes||!j.routes.length)
+    throw new Error("No se encontró una ruta sin peajes para esos puntos.");
+  var ruta=j.routes[0];
+  ruta._motor="Valhalla";
+  ruta._solicitaSinPeajes=true;
+  ruta._exclusionesAplicadas=(puntosExcluidos||[]).length;
+  return ruta;
+}
+
 function geometriaDeLeg(leg){
   var out=[];
   (leg.steps||[]).forEach(function(s){
@@ -1986,13 +2027,21 @@ function actualizarEstrategiaRutaUI(){
   var textos={
     rapida:"Se prioriza el menor tiempo de manejo entre las alternativas disponibles.",
     corta:"Se prioriza la alternativa disponible con menos kilómetros.",
-    peajes:"Se prioriza el menor cobro de peajes confirmado entre las alternativas disponibles."
+    peajes:"Se solicita una ruta nueva que excluya caminos con peaje y, si nuestro catálogo detecta un pórtico, se vuelve a calcular evitando ese punto."
   };
   estadoRuta.textContent=textos[rutaPreferencia];
-  if(alternativasRuta.length===1)
-    estadoRuta.textContent+=" OSRM solo encontró una ruta razonable para este recorrido.";
-  else if(alternativasRuta.length>1)
+  if(rutaPreferencia==="peajes"&&alternativasRuta.length&&alternativaSeleccionada>=0){
+    var sel=alternativasRuta[alternativaSeleccionada];
+    if(sel.cruces===0&&sel.pendientes===0)
+      estadoRuta.textContent="Ruta sin peajes validada: no se detectan cobros ni pórticos en el recorrido seleccionado.";
+    else
+      estadoRuta.textContent="No se encontró una ruta completamente libre de peajes. La mejor alternativa todavía cruza "+
+        sel.cruces+" punto"+(sel.cruces===1?"":"s")+" de cobro detectado"+(sel.cruces===1?"":"s")+".";
+  }else if(alternativasRuta.length===1){
+    estadoRuta.textContent+=" El motor solo encontró una ruta razonable para este recorrido.";
+  }else if(alternativasRuta.length>1){
     estadoRuta.textContent+=" Se compararon "+alternativasRuta.length+" rutas.";
+  }
 }
 
 function renderAlternativasRuta(){
@@ -2013,7 +2062,9 @@ function renderAlternativasRuta(){
     var etiquetas=[];
     if(Math.abs(a.min-minMin)<0.05) etiquetas.push("más rápida");
     if(Math.abs(a.km-minKm)<0.05) etiquetas.push("menos km");
-    if(a.pendientes===0&&Math.abs(a.peajes-minPeajes)<1) etiquetas.push("menos peajes");
+    if(a.cruces===0&&a.pendientes===0) etiquetas.push("sin peajes");
+    else if(a.pendientes===0&&Math.abs(a.peajes-minPeajes)<1) etiquetas.push("menos peajes");
+    if(a.motor==="Valhalla") etiquetas.push("ruta sin peajes");
     if(i===alternativaSeleccionada) etiquetas.push("en uso");
     var tags=etiquetas.length
       ? '<span class="ruta-etiquetas">'+etiquetas.map(function(e){
@@ -2037,7 +2088,7 @@ function renderAlternativasRuta(){
   cont.innerHTML='<table class="tabla-alternativas">'+
     '<thead><tr><th>Ruta</th><th>Tiempo</th><th>Distancia</th><th>Peajes</th><th>Costo directo</th><th></th></tr></thead>'+
     '<tbody>'+filas+'</tbody></table>'+
-    '<p class="nota-panel">“Menos kilómetros” y “Evitar peajes” comparan las alternativas que OSRM logra generar; no garantizan el mínimo absoluto de toda la red vial.</p>';
+    '<p class="nota-panel">“Menos kilómetros” compara alternativas OSRM. “Evitar peajes” solicita una ruta independiente a Valhalla con exclusión de peajes y la vuelve a revisar con nuestro catálogo MOP/AVO.</p>';
   cont.querySelectorAll("[data-usar-ruta]").forEach(function(b){
     b.addEventListener("click",function(){
       aplicarAlternativaRuta(parseInt(b.getAttribute("data-usar-ruta"),10));
@@ -2696,15 +2747,38 @@ function circuitoDesdeRuta(ruta){
   };
 }
 
+function puntosPeajeDetectados(peajes){
+  var salida=[],vistos={};
+  function agrega(p){
+    if(!p||!isFinite(Number(p.lat))||!isFinite(Number(p.lon))) return;
+    var claveP=Number(p.lat).toFixed(5)+","+Number(p.lon).toFixed(5);
+    if(vistos[claveP]) return;
+    vistos[claveP]=true;
+    salida.push({lat:Number(p.lat),lon:Number(p.lon)});
+  }
+  (peajes||[]).forEach(function(p){
+    if(p.esViajeAvo){
+      agrega(p.entrada);
+      agrega(p.salida);
+      (p.avoCandidatos||[]).forEach(agrega);
+    }else{
+      agrega(p);
+    }
+  });
+  return salida;
+}
+
 function evaluarRutaParaComparar(ruta){
   var candidato=circuitoDesdeRuta(ruta);
-  var peajes=0,pendientes=0;
+  var peajes=0,pendientes=0,cruces=0,puntosEvitar=[];
   if(indiceCatalogo){
     var circuitoAnterior=circuito;
     var diagnosticoAnterior=diagnosticoDeteccion;
     try{
       circuito=candidato;
       candidato.peajes=detectarPeajesCatalogo(candidato.legGeometrias);
+      cruces=candidato.peajes.length;
+      puntosEvitar=puntosPeajeDetectados(candidato.peajes);
       var ag=agenda();
       var cobros=ag.tramos.map(function(t){
         return tramoPeajes(t.indice,t.salida,t.sentido);
@@ -2721,12 +2795,45 @@ function evaluarRutaParaComparar(ruta){
     candidato.km*num("desgaste")+peajes;
   return {
     ruta:ruta,km:candidato.km,min:candidato.min,
-    peajes:peajes,pendientes:pendientes,costoDirecto:costoDirecto
+    peajes:peajes,pendientes:pendientes,cruces:cruces,
+    puntosEvitar:puntosEvitar,
+    motor:ruta._motor||"OSRM",
+    solicitaSinPeajes:!!ruta._solicitaSinPeajes,
+    costoDirecto:costoDirecto
   };
 }
 
 function evaluarAlternativasRuta(rutas){
   return (rutas||[]).map(evaluarRutaParaComparar);
+}
+
+async function construirRutaSinPeajes(puntos,modo){
+  var intentos=[];
+  var primera=await rutaValhallaSinPeajes(puntos,modo,[]);
+  var ev1=evaluarRutaParaComparar(primera);
+  intentos.push(ev1);
+
+  if(indiceCatalogo&&ev1.cruces>0&&ev1.puntosEvitar.length){
+    try{
+      var segunda=await rutaValhallaSinPeajes(
+        puntos,modo,ev1.puntosEvitar
+      );
+      var ev2=evaluarRutaParaComparar(segunda);
+      intentos.push(ev2);
+    }catch(e){}
+  }
+
+  intentos.sort(function(a,b){
+    var limpiaA=a.cruces===0&&a.pendientes===0;
+    var limpiaB=b.cruces===0&&b.pendientes===0;
+    if(limpiaA!==limpiaB) return limpiaA?-1:1;
+    return a.cruces-b.cruces||
+      a.pendientes-b.pendientes||
+      a.peajes-b.peajes||
+      a.min-b.min||
+      a.km-b.km;
+  });
+  return intentos[0];
 }
 
 function aplicarAlternativaRuta(indice){
@@ -2756,16 +2863,17 @@ function indiceRutaPreferida(lista,preferencia){
     return indices[0];
   }
   if(preferencia==="peajes"&&indiceCatalogo){
-    var sinPendientes=indices.filter(function(i){return lista[i].pendientes===0;});
-    var candidatas=sinPendientes.length?sinPendientes:indices;
-    candidatas.sort(function(a,b){
-      if(!sinPendientes.length&&lista[a].pendientes!==lista[b].pendientes)
-        return lista[a].pendientes-lista[b].pendientes;
-      return lista[a].peajes-lista[b].peajes||
+    indices.sort(function(a,b){
+      var limpiaA=lista[a].cruces===0&&lista[a].pendientes===0;
+      var limpiaB=lista[b].cruces===0&&lista[b].pendientes===0;
+      if(limpiaA!==limpiaB) return limpiaA?-1:1;
+      return lista[a].cruces-lista[b].cruces||
+        lista[a].pendientes-lista[b].pendientes||
+        lista[a].peajes-lista[b].peajes||
         lista[a].min-lista[b].min||
         lista[a].km-lista[b].km;
     });
-    return candidatas[0];
+    return indices[0];
   }
   indices.sort(function(a,b){
     return lista[a].min-lista[b].min||lista[a].km-lista[b].km;
@@ -2790,7 +2898,7 @@ async function recalcular(optimizar_orden){
 
   var puntos=puntosParaRuta();
   var etiquetaEstrategia={
-    rapida:"menor tiempo",corta:"menos kilómetros",peajes:"menos peajes"
+    rapida:"menor tiempo",corta:"menos kilómetros",peajes:"una ruta sin peajes"
   }[rutaPreferencia]||"menor tiempo";
   avisar(optimizar_orden?"Buscando el mejor orden y "+etiquetaEstrategia+"…":
     "Comparando alternativas para priorizar "+etiquetaEstrategia+"…",false);
@@ -2835,6 +2943,15 @@ async function recalcular(optimizar_orden){
     }
 
     alternativasRuta=evaluarAlternativasRuta(rutasCandidatas);
+    if(rutaPreferencia==="peajes"){
+      try{
+        estado("Buscando una ruta nueva que evite carreteras de peaje y pórticos…");
+        var sinPeajes=await construirRutaSinPeajes(puntos,modoFin);
+        if(sinPeajes) alternativasRuta.push(sinPeajes);
+      }catch(e){
+        avisar("No se pudo generar una ruta independiente sin peajes. Se compararán las alternativas disponibles.",true);
+      }
+    }
     alternativaSeleccionada=indiceRutaPreferida(
       alternativasRuta,rutaPreferencia
     );
@@ -2852,10 +2969,17 @@ async function recalcular(optimizar_orden){
       circuito.peajes=detectarPeajesCatalogo(circuito.legGeometrias);
       render();
       refrescarResumenCatalogo();
-      estado("Ruta "+(alternativaSeleccionada+1)+" de "+alternativasRuta.length+
-        " · preferencia "+({
+      var selFinal=alternativasRuta[alternativaSeleccionada];
+      var mensajeRuta="Ruta "+(alternativaSeleccionada+1)+" de "+alternativasRuta.length+
+        " · motor "+(selFinal.motor||"OSRM")+" · preferencia "+({
           rapida:"más rápida",corta:"menos kilómetros",peajes:"evitar peajes"
-        }[rutaPreferencia]||"más rápida")+
+        }[rutaPreferencia]||"más rápida");
+      if(rutaPreferencia==="peajes"){
+        mensajeRuta+=selFinal.cruces===0&&selFinal.pendientes===0
+          ?" · sin peajes validada por catálogo"
+          :" · aún detecta "+selFinal.cruces+" punto"+(selFinal.cruces===1?"":"s")+" de cobro";
+      }
+      estado(mensajeRuta+
         " · "+circuito.peajes.length+" cruces o trayectos aceptados · "+
         diagnosticoDeteccion.descartados.length+" candidatos descartados · "+
         diagnosticoDeteccion.ambiguos.length+" cruces ambiguos no cobrados.");
