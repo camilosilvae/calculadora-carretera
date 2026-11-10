@@ -53,6 +53,13 @@ No se debe asumir un horario común para toda una autopista.
 
 ## AVO I
 
+AVO I es una carretera/ruta independiente y su modelo especial aplica **solo** a AVO I.
+
+- La clasificación **Sentido AVO** (Norte / Sur / ambos) existe únicamente en la hoja de pórticos AVO I.
+- La matriz entrada → salida, sus distancias oficiales, tarifas y horarios son exclusivas de AVO I.
+- Ninguna hoja de otra carretera debe incluir columnas, reglas, sentidos ni tarifas propias de AVO I.
+- Las demás carreteras conservan únicamente su propio modelo de cobro, GPS, tarifas y horarios.
+
 AVO I no se cobra como una tarifa plana por pórtico. El monto se mantiene en la hoja **AVO I - Matriz**, según el par entrada → salida y la distancia oficial.
 
 ## Fuente de verdad
