@@ -1333,12 +1333,27 @@ function recuperarExtremoAvoDesdeMatriz(cruces,tramo,geo){
   opciones.sort(function(a,b){ return a.score-b.score; });
   var mejor=opciones[0],segundo=opciones[1];
 
-  /* Exigimos una ventaja clara. Si dos pares oficiales explican la ruta casi
-     igual de bien, no se aplica cobro automático. */
+  /* Exigimos una ventaja clara, salvo cuando el mejor candidato domina
+     objetivamente al segundo en ambas métricas principales. Esto evita dejar
+     pendiente un par como P201→P211 cuando P211 tiene simultáneamente menor
+     error respecto de la distancia oficial y mejor posición longitudinal. */
   var ventaja=segundo?segundo.score-mejor.score:Infinity;
   var evidenciaFuerte=
     mejor.distanciaEsperada<=500&&mejor.errorDistancia<=0.35;
-  if(segundo&&ventaja<0.14&&!evidenciaFuerte) return cruces;
+  var dominaSegundo=!!segundo&&
+    mejor.errorDistancia<=segundo.errorDistancia&&
+    mejor.distanciaEsperada<=segundo.distanciaEsperada&&
+    (
+      mejor.errorDistancia<segundo.errorDistancia-0.005||
+      mejor.distanciaEsperada<segundo.distanciaEsperada-100
+    );
+  var dominanteConfiable=dominaSegundo&&
+    mejor.errorDistancia<=0.40&&
+    mejor.distanciaEsperada<=3200;
+  if(segundo&&ventaja<0.14&&!evidenciaFuerte&&!dominanteConfiable)
+    return cruces;
+  if(dominanteConfiable)
+    mejor.cobro.reglaSeleccionAvo="matriz_oficial_candidato_dominante";
 
   diagnosticoDeteccion.aceptados.push({
     point_id:mejor.cobro.point_id,
@@ -1346,7 +1361,9 @@ function recuperarExtremoAvoDesdeMatriz(cruces,tramo,geo){
     codigo:mejor.cobro.codigo,
     confianza:"recuperada",
     puntaje:mejor.cobro.puntajeDeteccion,
-    motivo:"avo_extremo_recuperado_distancia_oficial",
+    motivo:dominanteConfiable
+      ?"avo_extremo_recuperado_candidato_dominante"
+      :"avo_extremo_recuperado_distancia_oficial",
     ancla:ancla.codigo,
     distanciaEsperada:mejor.distanciaEsperada,
     distanciaRuta:mejor.distanciaRuta,
