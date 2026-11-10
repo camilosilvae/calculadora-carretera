@@ -2028,13 +2028,21 @@ function renderAlternativasRuta(){
       '<td>'+coma(a.km)+' km</td>'+
       '<td>'+peajeTexto+'</td>'+
       '<td>'+costoTexto+'</td>'+
+      '<td><button type="button" class="usar-ruta" data-usar-ruta="'+i+'" '+
+        (i===alternativaSeleccionada?'disabled':'')+'>'+
+        (i===alternativaSeleccionada?'En uso':'Usar')+'</button></td>'+
       '</tr>';
   }).join("");
 
   cont.innerHTML='<table class="tabla-alternativas">'+
-    '<thead><tr><th>Ruta</th><th>Tiempo</th><th>Distancia</th><th>Peajes</th><th>Costo directo</th></tr></thead>'+
+    '<thead><tr><th>Ruta</th><th>Tiempo</th><th>Distancia</th><th>Peajes</th><th>Costo directo</th><th></th></tr></thead>'+
     '<tbody>'+filas+'</tbody></table>'+
     '<p class="nota-panel">“Menos kilómetros” y “Evitar peajes” comparan las alternativas que OSRM logra generar; no garantizan el mínimo absoluto de toda la red vial.</p>';
+  cont.querySelectorAll("[data-usar-ruta]").forEach(function(b){
+    b.addEventListener("click",function(){
+      aplicarAlternativaRuta(parseInt(b.getAttribute("data-usar-ruta"),10));
+    });
+  });
 }
 
 function renderAtajos(){
@@ -2719,6 +2727,23 @@ function evaluarRutaParaComparar(ruta){
 
 function evaluarAlternativasRuta(rutas){
   return (rutas||[]).map(evaluarRutaParaComparar);
+}
+
+function aplicarAlternativaRuta(indice){
+  var seleccion=alternativasRuta[indice];
+  if(!seleccion) return;
+  alternativaSeleccionada=indice;
+  circuito=circuitoDesdeRuta(seleccion.ruta);
+  if(indiceCatalogo){
+    circuito.peajes=detectarPeajesCatalogo(circuito.legGeometrias);
+    refrescarResumenCatalogo();
+  }else{
+    circuito.peajes=[];
+  }
+  render();
+  estado("Opción "+(indice+1)+" seleccionada manualmente · "+
+    Math.round(seleccion.min)+" min · "+coma(seleccion.km)+" km · "+
+    (seleccion.pendientes?"peajes desde ":"peajes ")+pesos(seleccion.peajes)+".");
 }
 
 function indiceRutaPreferida(lista,preferencia){
