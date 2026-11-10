@@ -1326,9 +1326,16 @@ function recuperarExtremoAvoDesdeMatriz(cruces,tramo,geo){
       score:score
     });
 
-    /* Filtros de seguridad amplios: el candidato debe seguir teniendo
-       coherencia geográfica y longitudinal con el viaje oficial. */
-    if(distanciaEsperada>1600||cerca.dist>1100||errorDistancia>0.95) return;
+    /* Si entrada y salida tienen el mismo sentido AVO explícito, no usamos
+       la distancia al "punto esperado" como corte duro: en túneles y enlaces
+       la geometría OSRM puede quedar muy desplazada. En ese caso mandan el
+       sentido validado, la existencia del par oficial, la cercanía real a la
+       ruta y la diferencia respecto de la distancia oficial. */
+    var mismoSentidoExplicito=
+      sentidosAncla.length===1&&
+      sentidosPunto.indexOf(sentidosAncla[0])>=0;
+    if(cerca.dist>1100||errorDistancia>0.95) return;
+    if(!mismoSentidoExplicito&&distanciaEsperada>1600) return;
 
     var evaluacion=evaluarCandidatoPunto(punto,cerca,geo);
     var cobro=crearCobroPunto(
